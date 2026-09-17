@@ -2,268 +2,352 @@
 <html lang="en">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>Stock System</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-    <link rel="stylesheet" href="style.css">
+    <title>Express Returns | Stock & Finance</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
 </head>
+
 
 <body>
 
-    <!-- ==========================================
-         SIDEBAR
-    =========================================== -->
 
-    <aside class="sidebar">
+<!-- =====================================================
+     SIDEBAR
+===================================================== -->
 
-        <div class="brand">
-            <h1>Stock System</h1>
-            <p>Stock • Sales • Control</p>
+<aside class="sidebar">
+
+    <div class="brand">
+
+        <div class="brand-logo">
+            ER
         </div>
 
+        <div>
 
-        <nav class="sidebar-nav">
+            <h1>
+                Express Returns
+            </h1>
 
-            <button class="nav-item active" data-section="dashboard">
+            <p>
+                Stock & Finance
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <nav class="navigation">
+
+        <button
+            class="nav-item active"
+            data-section="dashboard"
+        >
+            Dashboard
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="products"
+        >
+            Products
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="opening-stock"
+        >
+            Opening Stock
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="daily-stock"
+        >
+            Daily Stock
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="sales"
+        >
+            Sales & Receipts
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="purchases"
+        >
+            Purchases
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="expenses"
+        >
+            Expenses
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="reconciliation"
+        >
+            Reconciliation
+        </button>
+
+        <button
+            class="nav-item"
+            data-section="reports"
+        >
+            Reports
+        </button>
+
+    </nav>
+
+
+    <div class="sidebar-footer">
+
+        <strong>
+            Express Returns
+        </strong>
+
+        <span>
+            Business Control System
+        </span>
+
+    </div>
+
+</aside>
+
+
+
+<!-- =====================================================
+     MAIN APPLICATION
+===================================================== -->
+
+<div class="main-container">
+
+
+    <!-- TOP BAR -->
+
+    <header class="topbar">
+
+        <div>
+
+            <h2 id="pageTitle">
                 Dashboard
-            </button>
+            </h2>
 
-            <button class="nav-item" data-section="products">
-                Products
-            </button>
+            <p id="todayDate">
+                Loading date...
+            </p>
 
-            <button class="nav-item" data-section="opening-stock">
-                Opening Stock
-            </button>
-
-            <button class="nav-item" data-section="daily-stock">
-                Daily Stock
-            </button>
-
-            <button class="nav-item" data-section="sales">
-                Sales
-            </button>
-
-            <button class="nav-item" data-section="purchases">
-                Purchases
-            </button>
-
-            <button class="nav-item" data-section="expenses">
-                Expenses
-            </button>
-
-            <button class="nav-item" data-section="reconciliation">
-                Reconciliation
-            </button>
-
-            <button class="nav-item" data-section="reports">
-                Reports
-            </button>
-
-        </nav>
-
-
-        <div class="sidebar-footer">
-            <p>Stock System</p>
-            <small>Management Platform</small>
         </div>
 
-    </aside>
+
+        <div class="date-control">
+
+            <label for="globalDate">
+                Business Date
+            </label>
+
+            <input
+                type="date"
+                id="globalDate"
+            >
+
+        </div>
+
+    </header>
 
 
-    <!-- ==========================================
-         MAIN CONTENT
-    =========================================== -->
 
-    <main class="main-content">
+    <main>
 
 
-        <!-- ======================================
-             TOP BAR
-        ======================================= -->
-
-        <header class="topbar">
-
-            <div>
-                <p class="topbar-label">BUSINESS MANAGEMENT</p>
-                <h2 id="pageTitle">Dashboard</h2>
-            </div>
-
-            <div class="today">
-                <span>Today</span>
-                <strong id="todayDate">Loading...</strong>
-            </div>
-
-        </header>
-
-
-        <!-- ======================================
+        <!-- =================================================
              DASHBOARD
-        ======================================= -->
+        ================================================== -->
 
-        <section id="dashboard" class="page-section active-section">
+        <section
+            id="dashboard"
+            class="page-section active-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Dashboard</h2>
+                <h2>
+                    Daily Overview
+                </h2>
 
                 <p>
-                    Overview of your stock, sales and money.
+                    Monitor today's stock, sales and money.
                 </p>
 
             </div>
 
 
-            <div class="stats-grid">
+            <div class="summary-grid">
 
-                <div class="stat-card">
-                    <span>Total Products</span>
-                    <strong id="dashboardProducts">0</strong>
-                    <small>Active products</small>
+
+                <div class="summary-card">
+
+                    <span>
+                        Products
+                    </span>
+
+                    <strong id="dashboardProducts">
+                        0
+                    </strong>
+
                 </div>
 
 
-                <div class="stat-card">
-                    <span>Today's Sales</span>
-                    <strong>KES <span id="dashboardSales">0.00</span></strong>
-                    <small>Calculated from stock</small>
+                <div class="summary-card">
+
+                    <span>
+                        Today's Sales
+                    </span>
+
+                    <strong>
+                        KES
+                        <span id="dashboardSales">
+                            0.00
+                        </span>
+                    </strong>
+
                 </div>
 
 
-                <div class="stat-card">
-                    <span>Today's Expenses</span>
-                    <strong>KES <span id="dashboardExpenses">0.00</span></strong>
-                    <small>Recorded expenses</small>
+                <div class="summary-card">
+
+                    <span>
+                        Expenses
+                    </span>
+
+                    <strong>
+                        KES
+                        <span id="dashboardExpenses">
+                            0.00
+                        </span>
+                    </strong>
+
                 </div>
 
 
-                <div class="stat-card">
-                    <span>Difference</span>
-                    <strong>KES <span id="dashboardDifference">0.00</span></strong>
-                    <small>Cash reconciliation</small>
+                <div class="summary-card">
+
+                    <span>
+                        Stock Variance
+                    </span>
+
+                    <strong id="dashboardDifference">
+                        0
+                    </strong>
+
                 </div>
+
 
             </div>
 
 
-            <div class="dashboard-grid">
 
-                <div class="card">
+            <div class="card">
 
-                    <div class="section-header">
+                <div class="section-header">
 
-                        <div>
-                            <h3>Stock Process</h3>
-                            <p>How the system will calculate daily stock.</p>
-                        </div>
+                    <div>
 
-                    </div>
+                        <h3>
+                            How today's stock works
+                        </h3>
 
-
-                    <div class="process-list">
-
-                        <div class="process-item">
-                            <span>1</span>
-                            <div>
-                                <strong>Opening Stock</strong>
-                                <p>Yesterday's closing stock becomes today's opening stock.</p>
-                            </div>
-                        </div>
-
-
-                        <div class="process-item">
-                            <span>2</span>
-                            <div>
-                                <strong>Additions</strong>
-                                <p>Record stock received during the day.</p>
-                            </div>
-                        </div>
-
-
-                        <div class="process-item">
-                            <span>3</span>
-                            <div>
-                                <strong>Closing Stock</strong>
-                                <p>Count the physical stock remaining.</p>
-                            </div>
-                        </div>
-
-
-                        <div class="process-item">
-                            <span>4</span>
-                            <div>
-                                <strong>Units Sold</strong>
-                                <p>Opening + Additions - Closing = Units Sold.</p>
-                            </div>
-                        </div>
+                        <p>
+                            The system calculates stock movement automatically.
+                        </p>
 
                     </div>
 
                 </div>
 
 
-                <div class="card">
+                <div class="formula-box">
 
-                    <h3>Money Reconciliation</h3>
-
-                    <p class="card-description">
-                        The system will compare expected money with actual money.
-                    </p>
-
-
-                    <div class="formula-box">
-
-                        <strong>Expected Money</strong>
-
-                        <p>
-                            Total Sales − Expenses − Purchases
-                        </p>
-
+                    <div>
+                        Opening Stock
                     </div>
 
+                    <span>
+                        +
+                    </span>
 
-                    <div class="formula-box">
-
-                        <strong>Actual Money</strong>
-
-                        <p>
-                            Cash At Hand + Safaricom Till
-                        </p>
-
+                    <div>
+                        Additions
                     </div>
 
+                    <span>
+                        =
+                    </span>
 
-                    <div class="formula-box">
+                    <div>
+                        Available Stock
+                    </div>
 
-                        <strong>Difference</strong>
+                    <span>
+                        -
+                    </span>
 
-                        <p>
-                            Actual Money − Expected Money
-                        </p>
+                    <div>
+                        Closing Stock
+                    </div>
 
+                    <span>
+                        =
+                    </span>
+
+                    <div>
+                        Units Sold
                     </div>
 
                 </div>
 
             </div>
+
 
         </section>
 
 
-        <!-- ======================================
-             PRODUCTS
-        ======================================= -->
 
-        <section id="products" class="page-section">
+        <!-- =================================================
+             PRODUCTS
+        ================================================== -->
+
+        <section
+            id="products"
+            class="page-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Product Management</h2>
+                <h2>
+                    Products
+                </h2>
 
                 <p>
-                    Add and manage products used in the stock system.
+                    Manage products, selling prices and purchase prices.
                 </p>
 
             </div>
@@ -271,11 +355,9 @@
 
             <div class="card">
 
-                <h3>Add Product</h3>
-
-                <p class="card-description">
-                    Enter the selling and purchase price of each product.
-                </p>
+                <h3>
+                    Add Product
+                </h3>
 
 
                 <form id="productForm">
@@ -307,9 +389,9 @@
                             <input
                                 type="number"
                                 id="sellingPrice"
-                                placeholder="e.g. 100"
                                 min="0"
                                 step="0.01"
+                                placeholder="100"
                                 required
                             >
 
@@ -325,9 +407,9 @@
                             <input
                                 type="number"
                                 id="purchasePrice"
-                                placeholder="e.g. 60"
                                 min="0"
                                 step="0.01"
+                                placeholder="60"
                                 required
                             >
 
@@ -336,16 +418,24 @@
                     </div>
 
 
-                    <button type="submit" class="primary-button">
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
                         Add Product
                     </button>
+
 
                 </form>
 
 
-                <p id="formMessage" class="form-message"></p>
+                <p
+                    id="formMessage"
+                    class="form-message"
+                ></p>
 
             </div>
+
 
 
             <div class="card">
@@ -353,9 +443,17 @@
                 <div class="section-header">
 
                     <div>
-                        <h3>Products</h3>
-                        <p>Products currently registered in the system.</p>
+
+                        <h3>
+                            Product List
+                        </h3>
+
+                        <p>
+                            Products currently available in the system.
+                        </p>
+
                     </div>
+
 
                     <button
                         type="button"
@@ -375,11 +473,31 @@
                         <thead>
 
                             <tr>
-                                <th>#</th>
-                                <th>Product</th>
-                                <th>Selling Price</th>
-                                <th>Purchase Price</th>
-                                <th>Profit / Unit</th>
+
+                                <th>
+                                    #
+                                </th>
+
+                                <th>
+                                    Product
+                                </th>
+
+                                <th>
+                                    Selling Price
+                                </th>
+
+                                <th>
+                                    Purchase Price
+                                </th>
+
+                                <th>
+                                    Profit / Unit
+                                </th>
+
+                                <th>
+                                    Action
+                                </th>
+
                             </tr>
 
                         </thead>
@@ -388,9 +506,14 @@
                         <tbody id="productsTableBody">
 
                             <tr>
-                                <td colspan="5" class="empty-message">
+
+                                <td
+                                    colspan="6"
+                                    class="empty-message"
+                                >
                                     Loading products...
                                 </td>
+
                             </tr>
 
                         </tbody>
@@ -401,21 +524,28 @@
 
             </div>
 
+
         </section>
 
 
-        <!-- ======================================
+
+        <!-- =================================================
              OPENING STOCK
-        ======================================= -->
+        ================================================== -->
 
-        <section id="opening-stock" class="page-section">
+        <section
+            id="opening-stock"
+            class="page-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Opening Stock</h2>
+                <h2>
+                    Opening Stock
+                </h2>
 
                 <p>
-                    Set the initial stock available before daily stock-taking begins.
+                    Set the opening quantity for the selected business date.
                 </p>
 
             </div>
@@ -423,67 +553,9 @@
 
             <div class="card">
 
-                <div class="info-banner">
-                    Opening stock is the quantity available at the beginning of the business day.
-                </div>
+                <div class="date-row">
 
-
-                <div class="table-container">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-                                <th>Product</th>
-                                <th>Opening Quantity</th>
-                                <th>Action</th>
-                            </tr>
-
-                        </thead>
-
-
-                        <tbody id="openingStockTable">
-
-                            <tr>
-                                <td colspan="3" class="empty-message">
-                                    Products will appear here.
-                                </td>
-                            </tr>
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </div>
-
-        </section>
-
-
-        <!-- ======================================
-             DAILY STOCK
-        ======================================= -->
-
-        <section id="daily-stock" class="page-section">
-
-            <div class="page-heading">
-
-                <h2>Daily Stock</h2>
-
-                <p>
-                    Record opening stock, additions and closing stock.
-                </p>
-
-            </div>
-
-
-            <div class="card">
-
-                <div class="stock-date-row">
-
-                    <div class="form-group">
+                    <div>
 
                         <label for="stockDate">
                             Stock Date
@@ -506,25 +578,25 @@
                         <thead>
 
                             <tr>
-                                <th>Product</th>
-                                <th>Opening</th>
-                                <th>Additions</th>
-                                <th>Available</th>
-                                <th>Closing</th>
-                                <th>Units Sold</th>
-                                <th>Sales</th>
+
+                                <th>
+                                    Product
+                                </th>
+
+                                <th>
+                                    Opening Quantity
+                                </th>
+
+                                <th>
+                                    Action
+                                </th>
+
                             </tr>
 
                         </thead>
 
 
-                        <tbody id="dailyStockTable">
-
-                            <tr>
-                                <td colspan="7" class="empty-message">
-                                    Products will appear here.
-                                </td>
-                            </tr>
+                        <tbody id="openingStockTable">
 
                         </tbody>
 
@@ -537,49 +609,111 @@
         </section>
 
 
-        <!-- ======================================
-             SALES
-        ======================================= -->
 
-        <section id="sales" class="page-section">
+        <!-- =================================================
+             DAILY STOCK
+        ================================================== -->
+
+        <section
+            id="daily-stock"
+            class="page-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Sales</h2>
+                <h2>
+                    Daily Stock
+                </h2>
 
                 <p>
-                    Review sales generated from daily stock movement.
+                    Count physical stock and compare it with recorded receipts.
                 </p>
-
-            </div>
-
-
-            <div class="stats-grid">
-
-                <div class="stat-card">
-                    <span>Total Units Sold</span>
-                    <strong id="totalUnitsSold">0</strong>
-                </div>
-
-                <div class="stat-card">
-                    <span>Total Sales</span>
-                    <strong>KES <span id="totalSales">0.00</span></strong>
-                </div>
 
             </div>
 
 
             <div class="card">
 
-                <h3>Sales Summary</h3>
+                <div class="date-row">
 
-                <div class="empty-state">
-                    <strong>Sales will be generated from Daily Stock.</strong>
+                    <div>
 
-                    <p>
-                        Once stock quantities are recorded, the system will calculate
-                        units sold and sales automatically.
-                    </p>
+                        <label for="dailyStockDate">
+                            Stock Date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="dailyStockDate"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="formula-note">
+
+                    Opening + Additions - Closing = Physical Units Sold
+
+                </div>
+
+
+                <div class="table-container">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Product
+                                </th>
+
+                                <th>
+                                    Opening
+                                </th>
+
+                                <th>
+                                    Additions
+                                </th>
+
+                                <th>
+                                    Available
+                                </th>
+
+                                <th>
+                                    Closing
+                                </th>
+
+                                <th>
+                                    Stock Sold
+                                </th>
+
+                                <th>
+                                    Receipt Sold
+                                </th>
+
+                                <th>
+                                    Variance
+                                </th>
+
+                                <th>
+                                    Sales
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="dailyStockTable">
+
+                        </tbody>
+
+                    </table>
+
                 </div>
 
             </div>
@@ -587,18 +721,24 @@
         </section>
 
 
-        <!-- ======================================
-             PURCHASES
-        ======================================= -->
 
-        <section id="purchases" class="page-section">
+        <!-- =================================================
+             SALES & RECEIPTS
+        ================================================== -->
+
+        <section
+            id="sales"
+            class="page-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Purchases</h2>
+                <h2>
+                    Sales & Receipts
+                </h2>
 
                 <p>
-                    Record stock purchased and money paid for stock.
+                    Record sales, create receipts and track actual revenue.
                 </p>
 
             </div>
@@ -606,13 +746,237 @@
 
             <div class="card">
 
-                <h3>Record Purchase</h3>
+                <h3>
+                    New Sale
+                </h3>
+
+
+                <form id="saleForm">
+
+                    <div id="saleItems">
+
+                        <div class="sale-line">
+
+                            <div class="form-group">
+
+                                <label>
+                                    Product
+                                </label>
+
+                                <select
+                                    class="sale-product"
+                                    required
+                                >
+
+                                    <option value="">
+                                        Select product
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label>
+                                    Quantity
+                                </label>
+
+                                <input
+                                    type="number"
+                                    class="sale-quantity"
+                                    min="0.01"
+                                    step="0.01"
+                                    value="1"
+                                    required
+                                >
+
+                            </div>
+
+
+                            <div class="form-group">
+
+                                <label>
+                                    Total
+                                </label>
+
+                                <input
+                                    type="text"
+                                    class="sale-line-total"
+                                    value="KES 0.00"
+                                    readonly
+                                >
+
+                            </div>
+
+
+                            <button
+                                type="button"
+                                class="remove-sale-line"
+                            >
+                                Remove
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="sale-actions">
+
+                        <button
+                            type="button"
+                            id="addSaleItem"
+                            class="secondary-button"
+                        >
+                            + Add Item
+                        </button>
+
+                    </div>
+
+
+                    <div class="form-grid">
+
+                        <div class="form-group">
+
+                            <label for="paymentMethod">
+                                Payment Method
+                            </label>
+
+                            <select id="paymentMethod">
+
+                                <option value="CASH">
+                                    Cash
+                                </option>
+
+                                <option value="TILL">
+                                    Safaricom Till
+                                </option>
+
+                                <option value="OTHER">
+                                    Other
+                                </option>
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="sale-total">
+
+                        <span>
+                            Sale Total
+                        </span>
+
+                        <strong id="saleTotal">
+                            KES 0.00
+                        </strong>
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+                        Complete Sale
+                    </button>
+
+
+                    <p
+                        id="saleMessage"
+                        class="form-message"
+                    ></p>
+
+                </form>
+
+            </div>
+
+
+
+            <div class="card">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h3>
+                            Today's Receipts
+                        </h3>
+
+                        <p>
+                            Actual sales recorded through receipts.
+                        </p>
+
+                    </div>
+
+
+                    <strong class="money">
+
+                        KES
+
+                        <span id="totalSales">
+                            0.00
+                        </span>
+
+                    </strong>
+
+                </div>
+
+
+                <div id="salesList">
+
+                    <div class="empty-state">
+                        No sales recorded yet.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =================================================
+             PURCHASES
+        ================================================== -->
+
+        <section
+            id="purchases"
+            class="page-section"
+        >
+
+            <div class="page-heading">
+
+                <h2>
+                    Purchases
+                </h2>
+
+                <p>
+                    Record stock purchased during the business day.
+                </p>
+
+            </div>
+
+
+            <div class="card">
+
+                <h3>
+                    Record Purchase
+                </h3>
+
 
                 <div class="form-grid">
 
                     <div class="form-group">
 
-                        <label>Product</label>
+                        <label for="purchaseProduct">
+                            Product
+                        </label>
 
                         <select id="purchaseProduct">
 
@@ -627,12 +991,15 @@
 
                     <div class="form-group">
 
-                        <label>Quantity</label>
+                        <label for="purchaseQuantity">
+                            Quantity
+                        </label>
 
                         <input
                             type="number"
                             id="purchaseQuantity"
-                            min="1"
+                            min="0.01"
+                            step="0.01"
                             placeholder="Quantity"
                         >
 
@@ -641,7 +1008,9 @@
 
                     <div class="form-group">
 
-                        <label>Amount Paid</label>
+                        <label for="purchaseAmount">
+                            Amount Paid
+                        </label>
 
                         <input
                             type="number"
@@ -656,26 +1025,58 @@
                 </div>
 
 
-                <button class="primary-button" id="savePurchase">
+                <button
+                    type="button"
+                    id="savePurchase"
+                    class="primary-button"
+                >
                     Record Purchase
                 </button>
 
-                <p id="purchaseMessage" class="form-message"></p>
+
+                <p
+                    id="purchaseMessage"
+                    class="form-message"
+                ></p>
 
             </div>
 
 
+
             <div class="card">
 
-                <h3>Purchases</h3>
+                <div class="section-header">
 
-                <div class="empty-state">
+                    <div>
 
-                    <strong>No purchases recorded yet.</strong>
+                        <h3>
+                            Today's Purchases
+                        </h3>
 
-                    <p>
-                        Purchase records will appear here.
-                    </p>
+                    </div>
+
+
+                    <strong class="money">
+
+                        KES
+
+                        <span id="purchaseTotal">
+                            0.00
+                        </span>
+
+                    </strong>
+
+                </div>
+
+
+                <div
+                    id="purchaseList"
+                    class="list-container"
+                >
+
+                    <div class="empty-state">
+                        No purchases recorded yet.
+                    </div>
 
                 </div>
 
@@ -684,18 +1085,24 @@
         </section>
 
 
-        <!-- ======================================
-             EXPENSES
-        ======================================= -->
 
-        <section id="expenses" class="page-section">
+        <!-- =================================================
+             EXPENSES
+        ================================================== -->
+
+        <section
+            id="expenses"
+            class="page-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Expenses</h2>
+                <h2>
+                    Expenses
+                </h2>
 
                 <p>
-                    Record money spent on business expenses.
+                    Record money spent outside stock purchases.
                 </p>
 
             </div>
@@ -703,13 +1110,18 @@
 
             <div class="card">
 
-                <h3>Record Expense</h3>
+                <h3>
+                    Record Expense
+                </h3>
+
 
                 <div class="form-grid">
 
                     <div class="form-group">
 
-                        <label>Expense Description</label>
+                        <label for="expenseDescription">
+                            Description
+                        </label>
 
                         <input
                             type="text"
@@ -722,7 +1134,9 @@
 
                     <div class="form-group">
 
-                        <label>Amount</label>
+                        <label for="expenseAmount">
+                            Amount
+                        </label>
 
                         <input
                             type="number"
@@ -737,13 +1151,22 @@
                 </div>
 
 
-                <button class="primary-button" id="saveExpense">
+                <button
+                    type="button"
+                    id="saveExpense"
+                    class="primary-button"
+                >
                     Record Expense
                 </button>
 
-                <p id="expenseMessage" class="form-message"></p>
+
+                <p
+                    id="expenseMessage"
+                    class="form-message"
+                ></p>
 
             </div>
+
 
 
             <div class="card">
@@ -751,18 +1174,28 @@
                 <div class="section-header">
 
                     <div>
-                        <h3>Today's Expenses</h3>
-                        <p>Expenses recorded for the current day.</p>
+
+                        <h3>
+                            Today's Expenses
+                        </h3>
+
                     </div>
 
-                    <strong>
-                        KES <span id="expenseTotal">0.00</span>
+
+                    <strong class="money">
+
+                        KES
+
+                        <span id="expenseTotal">
+                            0.00
+                        </span>
+
                     </strong>
 
                 </div>
 
 
-                <div id="expenseList" class="list-container">
+                <div id="expenseList">
 
                     <div class="empty-state">
                         No expenses recorded yet.
@@ -775,15 +1208,21 @@
         </section>
 
 
-        <!-- ======================================
-             RECONCILIATION
-        ======================================= -->
 
-        <section id="reconciliation" class="page-section">
+        <!-- =================================================
+             RECONCILIATION
+        ================================================== -->
+
+        <section
+            id="reconciliation"
+            class="page-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Reconciliation</h2>
+                <h2>
+                    Reconciliation
+                </h2>
 
                 <p>
                     Compare expected money with actual money.
@@ -794,54 +1233,97 @@
 
             <div class="card">
 
-                <h3>Money Reconciliation</h3>
+
+                <div class="date-row">
+
+                    <div>
+
+                        <label for="reconciliationDate">
+                            Business Date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="reconciliationDate"
+                        >
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="reconciliation-grid">
+
+
+                    <div class="money-card">
+
+                        <span>
+                            Total Sales
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="reconcileSales">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                    <div class="money-card">
+
+                        <span>
+                            Expenses
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="reconcileExpenses">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                    <div class="money-card">
+
+                        <span>
+                            Purchases
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="reconcilePurchases">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
 
                 <div class="form-grid">
 
-                    <div class="form-group">
-
-                        <label>Total Sales</label>
-
-                        <input
-                            type="number"
-                            id="reconcileSales"
-                            value="0"
-                            readonly
-                        >
-
-                    </div>
-
 
                     <div class="form-group">
 
-                        <label>Expenses</label>
-
-                        <input
-                            type="number"
-                            id="reconcileExpenses"
-                            value="0"
-                            readonly
-                        >
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label>Purchases</label>
-
-                        <input
-                            type="number"
-                            id="reconcilePurchases"
-                            value="0"
-                        >
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label>Cash At Hand</label>
+                        <label for="cashAtHand">
+                            Cash At Hand
+                        </label>
 
                         <input
                             type="number"
@@ -856,7 +1338,9 @@
 
                     <div class="form-group">
 
-                        <label>Safaricom Till</label>
+                        <label for="tillAmount">
+                            Safaricom Till
+                        </label>
 
                         <input
                             type="number"
@@ -868,79 +1352,122 @@
 
                     </div>
 
+
                 </div>
 
 
-                <button class="primary-button" id="calculateReconciliation">
+                <button
+                    type="button"
+                    id="calculateReconciliation"
+                    class="primary-button"
+                >
                     Calculate Reconciliation
                 </button>
 
-            </div>
 
 
-            <div class="reconciliation-grid">
+                <div class="reconciliation-results">
 
-                <div class="reconcile-card">
 
-                    <span>Expected Money</span>
+                    <div>
 
-                    <strong>
-                        KES <span id="expectedMoney">0.00</span>
-                    </strong>
+                        <span>
+                            Expected Money
+                        </span>
 
-                    <small>
-                        Sales − Expenses − Purchases
-                    </small>
+                        <strong>
+
+                            KES
+
+                            <span id="expectedMoney">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Actual Money
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="actualMoney">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Difference
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="moneyDifference">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Status
+                        </span>
+
+                        <strong
+                            id="reconciliationStatus"
+                            class="status-badge balanced"
+                        >
+                            BALANCED
+                        </strong>
+
+                    </div>
+
 
                 </div>
 
-
-                <div class="reconcile-card">
-
-                    <span>Actual Money</span>
-
-                    <strong>
-                        KES <span id="actualMoney">0.00</span>
-                    </strong>
-
-                    <small>
-                        Cash + Till
-                    </small>
-
-                </div>
-
-
-                <div class="reconcile-card highlight">
-
-                    <span>Difference</span>
-
-                    <strong>
-                        KES <span id="moneyDifference">0.00</span>
-                    </strong>
-
-                    <small id="reconciliationStatus">
-                        Not calculated
-                    </small>
-
-                </div>
 
             </div>
 
         </section>
 
 
-        <!-- ======================================
-             REPORTS
-        ======================================= -->
 
-        <section id="reports" class="page-section">
+        <!-- =================================================
+             REPORTS
+        ================================================== -->
+
+        <section
+            id="reports"
+            class="page-section"
+        >
 
             <div class="page-heading">
 
-                <h2>Reports</h2>
+                <h2>
+                    Reports
+                </h2>
 
                 <p>
-                    Review historical stock, sales and financial information.
+                    Review the selected day's complete business activity.
                 </p>
 
             </div>
@@ -948,46 +1475,169 @@
 
             <div class="card">
 
-                <h3>Report Centre</h3>
 
-                <div class="report-grid">
+                <div class="date-row">
 
-                    <button class="report-card">
-                        <strong>Daily Stock Report</strong>
-                        <span>Opening, additions, closing and units sold.</span>
-                    </button>
+                    <div>
 
+                        <label for="reportDate">
+                            Report Date
+                        </label>
 
-                    <button class="report-card">
-                        <strong>Sales Report</strong>
-                        <span>Sales generated by product and date.</span>
-                    </button>
+                        <input
+                            type="date"
+                            id="reportDate"
+                        >
 
-
-                    <button class="report-card">
-                        <strong>Purchase Report</strong>
-                        <span>Stock purchased and money spent.</span>
-                    </button>
+                    </div>
 
 
-                    <button class="report-card">
-                        <strong>Expense Report</strong>
-                        <span>Business expenses by date.</span>
-                    </button>
-
-
-                    <button class="report-card">
-                        <strong>Reconciliation Report</strong>
-                        <span>Expected versus actual money.</span>
-                    </button>
-
-
-                    <button class="report-card">
-                        <strong>Profit Report</strong>
-                        <span>Revenue, cost and gross profit.</span>
+                    <button
+                        type="button"
+                        id="loadReport"
+                        class="secondary-button"
+                    >
+                        Load Report
                     </button>
 
                 </div>
+
+
+
+                <div class="report-summary">
+
+
+                    <div>
+
+                        <span>
+                            Receipt Units Sold
+                        </span>
+
+                        <strong id="reportUnits">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Sales
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="reportSales">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Cost
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="reportCost">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span>
+                            Gross Profit
+                        </span>
+
+                        <strong>
+
+                            KES
+
+                            <span id="reportProfit">
+                                0.00
+                            </span>
+
+                        </strong>
+
+                    </div>
+
+
+                </div>
+
+
+
+                <div class="table-container">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Product
+                                </th>
+
+                                <th>
+                                    Opening
+                                </th>
+
+                                <th>
+                                    Added
+                                </th>
+
+                                <th>
+                                    Closing
+                                </th>
+
+                                <th>
+                                    Stock Sold
+                                </th>
+
+                                <th>
+                                    Receipt Sold
+                                </th>
+
+                                <th>
+                                    Variance
+                                </th>
+
+                                <th>
+                                    Receipt Sales
+                                </th>
+
+                                <th>
+                                    Gross Profit
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="reportTable">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
 
             </div>
 
@@ -996,8 +1646,87 @@
 
     </main>
 
+</div>
 
-    <script src="script.js"></script>
+
+
+<!-- =====================================================
+     RECEIPT PRINT AREA
+===================================================== -->
+
+<div
+    id="receiptPrint"
+    class="receipt-print"
+>
+
+
+    <div class="receipt-header">
+
+        <h2>
+            EXPRESS RETURNS
+        </h2>
+
+        <p>
+            STOCK & SALES SYSTEM
+        </p>
+
+    </div>
+
+
+    <div class="receipt-details">
+
+        <div>
+            Receipt:
+            <strong id="receiptNumber">
+                -
+            </strong>
+        </div>
+
+        <div>
+            Date:
+            <strong id="receiptDate">
+                -
+            </strong>
+        </div>
+
+        <div>
+            Payment:
+            <strong id="receiptPayment">
+                -
+            </strong>
+        </div>
+
+    </div>
+
+
+    <div id="receiptItems"></div>
+
+
+    <div class="receipt-total">
+
+        <span>
+            TOTAL
+        </span>
+
+        <strong id="receiptTotal">
+            KES 0.00
+        </strong>
+
+    </div>
+
+
+    <div class="receipt-footer">
+
+        Thank you for your business.
+
+    </div>
+
+
+</div>
+
+
+
+<script src="script.js"></script>
 
 </body>
 

@@ -1,16 +1,14 @@
 const express = require("express");
 const cors = require("cors");
-
 const db = require("./database");
 
 const app = express();
-
 const PORT = process.env.PORT || 3000;
 
 
-// ==========================================
+// ======================================================
 // CORS
-// ==========================================
+// ======================================================
 
 const allowedOrigins = [
     "https://stunning-space-bassoon-69v9r76w4q5525xq6-8000.app.github.dev"
@@ -28,50 +26,51 @@ app.use(
                 return callback(null, true);
             }
 
-            console.log("Blocked CORS origin:", origin);
-
-            return callback(
-                new Error("Not allowed by CORS")
-            );
+            return callback(new Error("Not allowed by CORS"));
         },
 
-        methods: [
-            "GET",
-            "POST",
-            "PUT",
-            "DELETE",
-            "OPTIONS"
-        ],
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
 
-        allowedHeaders: [
-            "Content-Type",
-            "Authorization"
-        ],
-
-        credentials: false
+        allowedHeaders: ["Content-Type", "Authorization"]
     })
 );
-
 
 app.use(express.json());
 
 
-// ==========================================
-// HELPER
-// ==========================================
+// ======================================================
+// HELPERS
+// ======================================================
 
 function getToday() {
 
-    return new Date()
-        .toISOString()
-        .split("T")[0];
+    const now = new Date();
 
+    return [
+        now.getFullYear(),
+        String(now.getMonth() + 1).padStart(2, "0"),
+        String(now.getDate()).padStart(2, "0")
+    ].join("-");
 }
 
 
-// ==========================================
+function validDate(date) {
+
+    return /^\d{4}-\d{2}-\d{2}$/.test(date);
+}
+
+
+function number(value) {
+
+    const n = Number(value);
+
+    return Number.isFinite(n) ? n : 0;
+}
+
+
+// ======================================================
 // HOME
-// ==========================================
+// ======================================================
 
 app.get("/", (req, res) => {
 
@@ -83,46 +82,31 @@ app.get("/", (req, res) => {
 });
 
 
-// ==========================================
-// TEST
-// ==========================================
-
-app.get("/api/test", (req, res) => {
-
-    res.json({
-        success: true,
-        message: "Stock System API is working!"
-    });
-
-});
-
-
-// ==========================================
+// ======================================================
 // PRODUCTS
-// ==========================================
-
-
-// GET PRODUCTS
+// ======================================================
 
 app.get("/api/products", (req, res) => {
 
     try {
 
-        const products = db
-            .prepare(`
-                SELECT *
-                FROM products
-                WHERE active = 1
-                ORDER BY id DESC
-            `)
-            .all();
-
+        const products = db.prepare(`
+            SELECT
+                id,
+                name,
+                selling_price,
+                purchase_price,
+                active,
+                created_at
+            FROM products
+            WHERE active = 1
+            ORDER BY name ASC
+        `).all();
 
         res.json({
             success: true,
             products
         });
-
 
     } catch (error) {
 
@@ -130,109 +114,57 @@ app.get("/api/products", (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to get products"
+            message: "Failed to load products",
+            error: error.message
         });
 
     }
 
 });
 
-
-// ADD PRODUCT
 
 app.post("/api/products", (req, res) => {
 
     try {
 
-        const {
+        const name = String(req.body.name || "").trim();
+
+        const sellingPrice = number(req.body.selling_price);
+
+        const purchasePrice = number(req.body.purchase_price);
+
+        if (!name) {
+
+            return res.status(400).json({
+                success: false,
+                message: "Product name is required"
+            });
+
+        }
+
+        const result = db.prepare(`
+            INSERT INTO products
+            (
+                name,
+                selling_price,
+                purchase_price
+            )
+            VALUES (?, ?, ?)
+        `).run(
             name,
             sellingPrice,
             purchasePrice
-        } = req.body;
-
-
-        if (
-            !name ||
-            sellingPrice === undefined ||
-            purchasePrice === undefined
-        ) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Name, selling price and purchase price are required"
-            });
-
-        }
-
-
-        if (
-            typeof sellingPrice !== "number" ||
-            typeof purchasePrice !== "number"
-        ) {
-
-            return res.status(400).json({
-                success: false,
-                message: "Prices must be numbers"
-            });
-
-        }
-
-
-        if (sellingPrice <= 0) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Selling price must be greater than 0"
-            });
-
-        }
-
-
-        if (purchasePrice < 0) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Purchase price cannot be negative"
-            });
-
-        }
-
-
-        const result = db
-            .prepare(`
-                INSERT INTO products
-                (
-                    name,
-                    selling_price,
-                    purchase_price
-                )
-                VALUES (?, ?, ?)
-            `)
-            .run(
-                name.trim(),
-                sellingPrice,
-                purchasePrice
-            );
-
-
-        const product = db
-            .prepare(`
-                SELECT *
-                FROM products
-                WHERE id = ?
-            `)
-            .get(result.lastInsertRowid);
-
+        );
 
         res.status(201).json({
-            success: true,
-            message: "Product added successfully",
-            product
-        });
 
+            success: true,
+
+            message: "Product added successfully",
+
+            productId: result.lastInsertRowid
+
+        });
 
     } catch (error) {
 
@@ -240,7 +172,8 @@ app.post("/api/products", (req, res) => {
 
         res.status(500).json({
             success: false,
-            message: "Failed to add product"
+            message: "Failed to add product",
+            error: error.message
         });
 
     }
@@ -248,40 +181,92 @@ app.post("/api/products", (req, res) => {
 });
 
 
-// ==========================================
+// DELETE PRODUCT
+app.delete("/api/products/:id", (req, res) => {
+
+    try {
+
+        const id = Number(req.params.id);
+
+        const result = db.prepare(`
+            UPDATE products
+            SET active = 0
+            WHERE id = ?
+        `).run(id);
+
+        if (!result.changes) {
+
+            return res.status(404).json({
+                success: false,
+                message: "Product not found"
+            });
+
+        }
+
+        res.json({
+            success: true,
+            message: "Product deleted"
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to delete product"
+        });
+
+    }
+
+});
+
+
+// ======================================================
 // OPENING STOCK
-// ==========================================
-
-
-// GET OPENING STOCK
+// ======================================================
 
 app.get("/api/opening-stock", (req, res) => {
 
     try {
 
-        const date =
-            req.query.date || getToday();
+        const date = req.query.date || getToday();
 
+        const products = db.prepare(`
+            SELECT
+                p.id,
+                p.name,
+                p.selling_price,
+                p.purchase_price,
 
-        const products = db
-            .prepare(`
-                SELECT
-                    p.id,
-                    p.name,
-                    COALESCE(ds.opening_quantity, 0)
-                        AS opening_quantity
-                FROM products p
+                COALESCE(
+                    (
+                        SELECT closing_quantity
+                        FROM daily_stock ds
+                        WHERE ds.product_id = p.id
+                        AND ds.date < ?
+                        ORDER BY ds.date DESC
+                        LIMIT 1
+                    ),
+                    0
+                ) AS previous_closing,
 
-                LEFT JOIN daily_stock ds
-                    ON p.id = ds.product_id
-                    AND ds.date = ?
+                COALESCE(
+                    (
+                        SELECT opening_quantity
+                        FROM daily_stock ds2
+                        WHERE ds2.product_id = p.id
+                        AND ds2.date = ?
+                    ),
+                    0
+                ) AS opening_quantity
 
-                WHERE p.active = 1
+            FROM products p
 
-                ORDER BY p.id ASC
-            `)
-            .all(date);
+            WHERE p.active = 1
 
+            ORDER BY p.name ASC
+        `).all(date, date);
 
         res.json({
             success: true,
@@ -289,14 +274,14 @@ app.get("/api/opening-stock", (req, res) => {
             products
         });
 
-
     } catch (error) {
 
-        console.error(error);
+        console.error("OPENING STOCK ERROR:", error);
 
         res.status(500).json({
             success: false,
-            message: "Failed to get opening stock"
+            message: "Failed to load opening stock",
+            error: error.message
         });
 
     }
@@ -304,42 +289,31 @@ app.get("/api/opening-stock", (req, res) => {
 });
 
 
-// SAVE OPENING STOCK
-
 app.post("/api/opening-stock", (req, res) => {
 
     try {
 
-        const {
-            date,
-            productId,
-            quantity
-        } = req.body;
+        const date = req.body.date;
 
+        const productId = Number(req.body.product_id);
 
-        if (
-            !date ||
-            !productId ||
-            quantity === undefined
-        ) {
+        const quantity = number(req.body.quantity);
+
+        if (!validDate(date)) {
 
             return res.status(400).json({
                 success: false,
-                message:
-                    "Date, product and quantity are required"
+                message: "Invalid date"
             });
 
         }
 
-
-        const product = db
-            .prepare(`
-                SELECT *
-                FROM products
-                WHERE id = ?
-            `)
-            .get(productId);
-
+        const product = db.prepare(`
+            SELECT id
+            FROM products
+            WHERE id = ?
+            AND active = 1
+        `).get(productId);
 
         if (!product) {
 
@@ -350,40 +324,52 @@ app.post("/api/opening-stock", (req, res) => {
 
         }
 
+        const existing = db.prepare(`
+            SELECT id
+            FROM daily_stock
+            WHERE date = ?
+            AND product_id = ?
+        `).get(date, productId);
 
-        db.prepare(`
-            INSERT INTO daily_stock
-            (
+        if (existing) {
+
+            db.prepare(`
+                UPDATE daily_stock
+                SET opening_quantity = ?
+                WHERE id = ?
+            `).run(quantity, existing.id);
+
+        } else {
+
+            db.prepare(`
+                INSERT INTO daily_stock
+                (
+                    date,
+                    product_id,
+                    opening_quantity
+                )
+                VALUES (?, ?, ?)
+            `).run(
                 date,
-                product_id,
-                opening_quantity
-            )
-            VALUES (?, ?, ?)
+                productId,
+                quantity
+            );
 
-            ON CONFLICT(date, product_id)
-            DO UPDATE SET
-                opening_quantity = excluded.opening_quantity
-        `)
-        .run(
-            date,
-            productId,
-            quantity
-        );
-
+        }
 
         res.json({
             success: true,
             message: "Opening stock saved"
         });
 
-
     } catch (error) {
 
         console.error(error);
 
         res.status(500).json({
             success: false,
-            message: "Failed to save opening stock"
+            message: "Failed to save opening stock",
+            error: error.message
         });
 
     }
@@ -391,83 +377,153 @@ app.post("/api/opening-stock", (req, res) => {
 });
 
 
-// ==========================================
+// ======================================================
 // DAILY STOCK
-// ==========================================
-
-
-// GET DAILY STOCK
+// ======================================================
 
 app.get("/api/daily-stock", (req, res) => {
 
     try {
 
-        const date =
-            req.query.date || getToday();
+        const date = req.query.date || getToday();
 
+        if (!validDate(date)) {
 
-        const products = db
-            .prepare(`
-                SELECT
+            return res.status(400).json({
+                success: false,
+                message: "Invalid date"
+            });
 
-                    p.id,
+        }
 
-                    p.name,
+        const products = db.prepare(`
+            SELECT
 
-                    p.selling_price,
+                p.id,
 
-                    COALESCE(
-                        ds.opening_quantity,
-                        (
-                            SELECT closing_quantity
-                            FROM daily_stock previous
-                            WHERE previous.product_id = p.id
-                            AND previous.date < ?
-                            ORDER BY previous.date DESC
-                            LIMIT 1
-                        ),
-                        0
-                    ) AS opening_quantity,
+                p.name,
 
+                p.selling_price,
+
+                p.purchase_price,
+
+                COALESCE(ds.opening_quantity, 0)
+                    AS opening_quantity,
+
+                COALESCE(ds.additions, 0)
+                    AS additions,
+
+                (
+                    COALESCE(ds.opening_quantity, 0)
+                    +
                     COALESCE(ds.additions, 0)
-                        AS additions,
+                )
+                    AS available_quantity,
 
-                    COALESCE(ds.closing_quantity, 0)
-                        AS closing_quantity,
+                COALESCE(ds.closing_quantity, 0)
+                    AS closing_quantity,
 
-                    COALESCE(ds.units_sold, 0)
-                        AS units_sold,
+                COALESCE(ds.units_sold, 0)
+                    AS units_sold,
 
-                    COALESCE(ds.sales, 0)
-                        AS sales
+                COALESCE(ds.sales, 0)
+                    AS sales,
 
-                FROM products p
+                COALESCE(
+                    (
+                        SELECT SUM(si.quantity)
 
-                LEFT JOIN daily_stock ds
-                    ON p.id = ds.product_id
-                    AND ds.date = ?
+                        FROM sale_items si
 
-                WHERE p.active = 1
+                        INNER JOIN sales s
+                        ON s.id = si.sale_id
 
-                ORDER BY p.id ASC
-            `)
-            .all(date, date);
+                        WHERE si.product_id = p.id
+                        AND s.date = ?
 
+                    ),
+                    0
+                )
+                AS recorded_units_sold,
 
-        res.json({
-            success: true,
+                COALESCE(
+                    (
+                        SELECT SUM(si.total)
+
+                        FROM sale_items si
+
+                        INNER JOIN sales s
+                        ON s.id = si.sale_id
+
+                        WHERE si.product_id = p.id
+                        AND s.date = ?
+
+                    ),
+                    0
+                )
+                AS receipt_sales
+
+            FROM products p
+
+            LEFT JOIN daily_stock ds
+
+            ON ds.product_id = p.id
+            AND ds.date = ?
+
+            WHERE p.active = 1
+
+            ORDER BY p.name ASC
+
+        `).all(
             date,
-            products
+            date,
+            date
+        );
+
+
+        const formatted = products.map(p => {
+
+            const stockSold = number(p.units_sold);
+
+            const receiptSold = number(p.recorded_units_sold);
+
+            return {
+
+                ...p,
+
+                stock_variance:
+                    stockSold - receiptSold
+
+            };
+
         });
 
 
+        res.json({
+
+            success: true,
+
+            date,
+
+            products: formatted
+
+        });
+
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "DAILY STOCK ERROR:",
+            error
+        );
 
         res.status(500).json({
+
             success: false,
-            message: "Failed to get daily stock"
+
+            message: "Failed to load daily stock",
+
+            error: error.message
+
         });
 
     }
@@ -475,114 +531,103 @@ app.get("/api/daily-stock", (req, res) => {
 });
 
 
-// SAVE DAILY STOCK
-
 app.post("/api/daily-stock", (req, res) => {
 
     try {
 
-        const {
-            date,
-            productId,
-            additions,
-            closingQuantity
-        } = req.body;
+        const date = req.body.date;
+
+        const productId =
+            Number(req.body.product_id);
+
+        const additions =
+            number(req.body.additions);
+
+        const closing =
+            number(req.body.closing_quantity);
 
 
-        if (
-            !date ||
-            !productId ||
-            additions === undefined ||
-            closingQuantity === undefined
-        ) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Date, product, additions and closing quantity are required"
-            });
-
-        }
-
-
-        const product = db
-            .prepare(`
-                SELECT *
-                FROM products
-                WHERE id = ?
-            `)
-            .get(productId);
+        const product = db.prepare(`
+            SELECT *
+            FROM products
+            WHERE id = ?
+            AND active = 1
+        `).get(productId);
 
 
         if (!product) {
 
             return res.status(404).json({
+
                 success: false,
+
                 message: "Product not found"
+
             });
 
         }
 
 
-        // Find opening stock
-
-        const previousDay = db
-            .prepare(`
-                SELECT closing_quantity
-                FROM daily_stock
-                WHERE product_id = ?
-                AND date < ?
-                ORDER BY date DESC
-                LIMIT 1
-            `)
-            .get(productId, date);
+        let existing = db.prepare(`
+            SELECT *
+            FROM daily_stock
+            WHERE date = ?
+            AND product_id = ?
+        `).get(
+            date,
+            productId
+        );
 
 
-        const existingToday = db
-            .prepare(`
-                SELECT opening_quantity
-                FROM daily_stock
-                WHERE product_id = ?
-                AND date = ?
-            `)
-            .get(productId, date);
+        let opening = 0;
 
 
-        let openingQuantity = 0;
+        if (existing) {
 
+            opening =
+                number(existing.opening_quantity);
 
-        if (existingToday) {
+        } else {
 
-            openingQuantity =
-                Number(
-                    existingToday.opening_quantity
+            const previous =
+                db.prepare(`
+                    SELECT closing_quantity
+
+                    FROM daily_stock
+
+                    WHERE product_id = ?
+
+                    AND date < ?
+
+                    ORDER BY date DESC
+
+                    LIMIT 1
+                `).get(
+                    productId,
+                    date
                 );
 
-        } else if (previousDay) {
 
-            openingQuantity =
-                Number(
-                    previousDay.closing_quantity
-                );
+            opening = previous
+                ? number(previous.closing_quantity)
+                : 0;
 
         }
 
 
         const available =
-            openingQuantity +
-            Number(additions);
-
-
-        const closing =
-            Number(closingQuantity);
+            opening + additions;
 
 
         if (closing > available) {
 
             return res.status(400).json({
+
                 success: false,
+
                 message:
-                    "Closing stock cannot be greater than available stock"
+                    `Closing stock cannot exceed available stock (${available})`
+
             });
 
         }
@@ -594,75 +639,101 @@ app.post("/api/daily-stock", (req, res) => {
 
         const sales =
             unitsSold *
-            Number(product.selling_price);
+            number(product.selling_price);
 
 
-        db.prepare(`
-            INSERT INTO daily_stock
-            (
-                date,
-                product_id,
-                opening_quantity,
+        if (existing) {
+
+            db.prepare(`
+                UPDATE daily_stock
+
+                SET
+                    opening_quantity = ?,
+                    additions = ?,
+                    closing_quantity = ?,
+                    units_sold = ?,
+                    sales = ?
+
+                WHERE id = ?
+
+            `).run(
+
+                opening,
                 additions,
-                closing_quantity,
-                units_sold,
+                closing,
+                unitsSold,
+                sales,
+                existing.id
+
+            );
+
+        } else {
+
+            db.prepare(`
+                INSERT INTO daily_stock
+                (
+                    date,
+                    product_id,
+                    opening_quantity,
+                    additions,
+                    closing_quantity,
+                    units_sold,
+                    sales
+                )
+
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+
+            `).run(
+
+                date,
+                productId,
+                opening,
+                additions,
+                closing,
+                unitsSold,
                 sales
-            )
 
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            );
 
-            ON CONFLICT(date, product_id)
-
-            DO UPDATE SET
-
-                opening_quantity =
-                    excluded.opening_quantity,
-
-                additions =
-                    excluded.additions,
-
-                closing_quantity =
-                    excluded.closing_quantity,
-
-                units_sold =
-                    excluded.units_sold,
-
-                sales =
-                    excluded.sales
-        `)
-        .run(
-            date,
-            productId,
-            openingQuantity,
-            Number(additions),
-            closing,
-            unitsSold,
-            sales
-        );
+        }
 
 
         res.json({
-            success: true,
-            message: "Daily stock saved",
-            stock: {
-                date,
-                productId,
-                openingQuantity,
-                additions,
-                closingQuantity: closing,
-                unitsSold,
-                sales
-            }
-        });
 
+            success: true,
+
+            message: "Daily stock saved",
+
+            stock: {
+
+                opening,
+
+                additions,
+
+                available,
+
+                closing,
+
+                unitsSold,
+
+                sales
+
+            }
+
+        });
 
     } catch (error) {
 
         console.error(error);
 
         res.status(500).json({
+
             success: false,
-            message: "Failed to save daily stock"
+
+            message: "Failed to save daily stock",
+
+            error: error.message
+
         });
 
     }
@@ -670,10 +741,260 @@ app.post("/api/daily-stock", (req, res) => {
 });
 
 
-// ==========================================
-// SALES
-// ==========================================
+// ======================================================
+// SALES / RECEIPTS
+// ======================================================
 
+app.post("/api/sales", (req, res) => {
+
+    try {
+
+        const date =
+            req.body.date;
+
+        const paymentMethod =
+            req.body.payment_method || "CASH";
+
+        const items =
+            req.body.items;
+
+
+        if (!validDate(date)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Invalid date"
+
+            });
+
+        }
+
+
+        if (
+            !Array.isArray(items) ||
+            items.length === 0
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message: "Add at least one item"
+
+            });
+
+        }
+
+
+        const createSale =
+            db.transaction(() => {
+
+                let totalAmount = 0;
+
+                const cleanItems = [];
+
+
+                for (const item of items) {
+
+                    const productId =
+                        Number(item.product_id);
+
+                    const quantity =
+                        Number(item.quantity);
+
+
+                    if (
+                        !Number.isFinite(quantity) ||
+                        quantity <= 0
+                    ) {
+
+                        throw new Error(
+                            "Quantity must be greater than zero"
+                        );
+
+                    }
+
+
+                    const product =
+                        db.prepare(`
+                            SELECT *
+                            FROM products
+                            WHERE id = ?
+                            AND active = 1
+                        `).get(productId);
+
+
+                    if (!product) {
+
+                        throw new Error(
+                            "Product not found"
+                        );
+
+                    }
+
+
+                    const unitPrice =
+                        number(product.selling_price);
+
+
+                    const total =
+                        quantity * unitPrice;
+
+
+                    totalAmount += total;
+
+
+                    cleanItems.push({
+
+                        productId,
+
+                        quantity,
+
+                        unitPrice,
+
+                        total
+
+                    });
+
+                }
+
+
+                const tempReceipt =
+                    `TEMP-${Date.now()}-${Math.random()}`;
+
+
+                const result =
+                    db.prepare(`
+                        INSERT INTO sales
+                        (
+                            date,
+                            receipt_number,
+                            payment_method,
+                            total_amount
+                        )
+
+                        VALUES (?, ?, ?, ?)
+
+                    `).run(
+
+                        date,
+
+                        tempReceipt,
+
+                        paymentMethod,
+
+                        totalAmount
+
+                    );
+
+
+                const saleId =
+                    result.lastInsertRowid;
+
+
+                const receiptNumber =
+                    `ER-${date.replace(/-/g, "")}-${String(saleId).padStart(4, "0")}`;
+
+
+                db.prepare(`
+                    UPDATE sales
+                    SET receipt_number = ?
+                    WHERE id = ?
+                `).run(
+                    receiptNumber,
+                    saleId
+                );
+
+
+                const insertItem =
+                    db.prepare(`
+                        INSERT INTO sale_items
+                        (
+                            sale_id,
+                            product_id,
+                            quantity,
+                            unit_price,
+                            total
+                        )
+
+                        VALUES (?, ?, ?, ?, ?)
+                    `);
+
+
+                for (const item of cleanItems) {
+
+                    insertItem.run(
+
+                        saleId,
+
+                        item.productId,
+
+                        item.quantity,
+
+                        item.unitPrice,
+
+                        item.total
+
+                    );
+
+                }
+
+
+                return {
+
+                    saleId,
+
+                    receiptNumber,
+
+                    totalAmount
+
+                };
+
+            });
+
+
+        const result =
+            createSale();
+
+
+        res.status(201).json({
+
+            success: true,
+
+            saleId: result.saleId,
+
+            receiptNumber:
+                result.receiptNumber,
+
+            totalAmount:
+                result.totalAmount
+
+        });
+
+    } catch (error) {
+
+        console.error(
+            "SALE ERROR:",
+            error
+        );
+
+        res.status(500).json({
+
+            success: false,
+
+            message: error.message ||
+                "Failed to save sale"
+
+        });
+
+    }
+
+});
+
+
+// GET SALES
 app.get("/api/sales", (req, res) => {
 
     try {
@@ -682,64 +1003,78 @@ app.get("/api/sales", (req, res) => {
             req.query.date || getToday();
 
 
-        const sales = db
-            .prepare(`
+        const sales =
+            db.prepare(`
                 SELECT
 
-                    ds.id,
+                    s.id,
 
-                    ds.date,
+                    s.date,
 
-                    p.name,
+                    s.receipt_number,
 
-                    ds.units_sold,
+                    s.payment_method,
 
-                    p.selling_price,
+                    s.total_amount,
 
-                    ds.sales
+                    COUNT(si.id)
+                    AS item_count
 
-                FROM daily_stock ds
+                FROM sales s
 
-                JOIN products p
-                    ON p.id = ds.product_id
+                LEFT JOIN sale_items si
 
-                WHERE ds.date = ?
+                ON si.sale_id = s.id
 
-                ORDER BY p.name ASC
-            `)
-            .all(date);
+                WHERE s.date = ?
 
+                GROUP BY s.id
 
-        const total = sales.reduce(
-            (sum, item) =>
-                sum + Number(item.sales),
-            0
-        );
+                ORDER BY s.id DESC
+
+            `).all(date);
 
 
-        const units = sales.reduce(
-            (sum, item) =>
-                sum + Number(item.units_sold),
-            0
-        );
+        const total =
+            db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(total_amount),
+                        0
+                    ) AS total
+
+                FROM sales
+
+                WHERE date = ?
+
+            `).get(date);
 
 
         res.json({
-            success: true,
-            date,
-            units,
-            total,
-            sales
-        });
 
+            success: true,
+
+            date,
+
+            totalSales:
+                number(total.total),
+
+            sales
+
+        });
 
     } catch (error) {
 
         console.error(error);
 
         res.status(500).json({
+
             success: false,
-            message: "Failed to get sales"
+
+            message: "Failed to load sales",
+
+            error: error.message
+
         });
 
     }
@@ -747,12 +1082,153 @@ app.get("/api/sales", (req, res) => {
 });
 
 
-// ==========================================
+// GET SINGLE RECEIPT
+app.get("/api/sales/:id", (req, res) => {
+
+    try {
+
+        const id =
+            Number(req.params.id);
+
+
+        const sale =
+            db.prepare(`
+                SELECT *
+                FROM sales
+                WHERE id = ?
+            `).get(id);
+
+
+        if (!sale) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "Receipt not found"
+
+            });
+
+        }
+
+
+        const items =
+            db.prepare(`
+                SELECT
+
+                    si.id,
+
+                    si.product_id,
+
+                    p.name,
+
+                    si.quantity,
+
+                    si.unit_price,
+
+                    si.total
+
+                FROM sale_items si
+
+                INNER JOIN products p
+
+                ON p.id = si.product_id
+
+                WHERE si.sale_id = ?
+
+                ORDER BY si.id ASC
+
+            `).all(id);
+
+
+        res.json({
+
+            success: true,
+
+            sale: {
+
+                ...sale,
+
+                items
+
+            }
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: "Failed to load receipt"
+
+        });
+
+    }
+
+});
+
+
+// DELETE SALE
+app.delete("/api/sales/:id", (req, res) => {
+
+    try {
+
+        const id =
+            Number(req.params.id);
+
+
+        const result =
+            db.prepare(`
+                DELETE FROM sales
+                WHERE id = ?
+            `).run(id);
+
+
+        if (!result.changes) {
+
+            return res.status(404).json({
+
+                success: false,
+
+                message: "Sale not found"
+
+            });
+
+        }
+
+
+        res.json({
+
+            success: true,
+
+            message: "Receipt deleted"
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: "Failed to delete receipt"
+
+        });
+
+    }
+
+});
+
+
+// ======================================================
 // PURCHASES
-// ==========================================
-
-
-// GET PURCHASES
+// ======================================================
 
 app.get("/api/purchases", (req, res) => {
 
@@ -762,57 +1238,71 @@ app.get("/api/purchases", (req, res) => {
             req.query.date || getToday();
 
 
-        const purchases = db
-            .prepare(`
+        const purchases =
+            db.prepare(`
                 SELECT
 
-                    purchases.id,
+                    pu.id,
 
-                    purchases.date,
+                    pu.date,
 
-                    purchases.product_id,
+                    pu.product_id,
 
-                    products.name,
+                    p.name,
 
-                    purchases.quantity,
+                    pu.quantity,
 
-                    purchases.amount
+                    pu.amount
+
+                FROM purchases pu
+
+                INNER JOIN products p
+
+                ON p.id = pu.product_id
+
+                WHERE pu.date = ?
+
+                ORDER BY pu.id DESC
+
+            `).all(date);
+
+
+        const total =
+            db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(amount),
+                        0
+                    ) AS total
 
                 FROM purchases
 
-                JOIN products
-                    ON products.id =
-                       purchases.product_id
+                WHERE date = ?
 
-                WHERE purchases.date = ?
-
-                ORDER BY purchases.id DESC
-            `)
-            .all(date);
-
-
-        const total = purchases.reduce(
-            (sum, purchase) =>
-                sum + Number(purchase.amount),
-            0
-        );
+            `).get(date);
 
 
         res.json({
-            success: true,
-            date,
-            total,
-            purchases
-        });
 
+            success: true,
+
+            purchases,
+
+            total:
+                number(total.total)
+
+        });
 
     } catch (error) {
 
         console.error(error);
 
         res.status(500).json({
+
             success: false,
-            message: "Failed to get purchases"
+
+            message: "Failed to load purchases"
+
         });
 
     }
@@ -820,70 +1310,12 @@ app.get("/api/purchases", (req, res) => {
 });
 
 
-// SAVE PURCHASE
-
 app.post("/api/purchases", (req, res) => {
 
     try {
 
-        const {
-            date,
-            productId,
-            quantity,
-            amount
-        } = req.body;
-
-
-        if (
-            !date ||
-            !productId ||
-            quantity === undefined ||
-            amount === undefined
-        ) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Date, product, quantity and amount are required"
-            });
-
-        }
-
-
-        if (
-            Number(quantity) <= 0 ||
-            Number(amount) < 0
-        ) {
-
-            return res.status(400).json({
-                success: false,
-                message: "Invalid purchase values"
-            });
-
-        }
-
-
-        const product = db
-            .prepare(`
-                SELECT *
-                FROM products
-                WHERE id = ?
-            `)
-            .get(productId);
-
-
-        if (!product) {
-
-            return res.status(404).json({
-                success: false,
-                message: "Product not found"
-            });
-
-        }
-
-
-        const result = db
-            .prepare(`
+        const result =
+            db.prepare(`
                 INSERT INTO purchases
                 (
                     date,
@@ -891,30 +1323,42 @@ app.post("/api/purchases", (req, res) => {
                     quantity,
                     amount
                 )
+
                 VALUES (?, ?, ?, ?)
-            `)
-            .run(
-                date,
-                productId,
-                quantity,
-                amount
+
+            `).run(
+
+                req.body.date,
+
+                Number(req.body.product_id),
+
+                number(req.body.quantity),
+
+                number(req.body.amount)
+
             );
 
 
         res.status(201).json({
-            success: true,
-            message: "Purchase recorded",
-            id: result.lastInsertRowid
-        });
 
+            success: true,
+
+            message: "Purchase saved",
+
+            id: result.lastInsertRowid
+
+        });
 
     } catch (error) {
 
         console.error(error);
 
         res.status(500).json({
+
             success: false,
-            message: "Failed to record purchase"
+
+            message: "Failed to save purchase"
+
         });
 
     }
@@ -922,12 +1366,47 @@ app.post("/api/purchases", (req, res) => {
 });
 
 
-// ==========================================
+app.delete("/api/purchases/:id", (req, res) => {
+
+    try {
+
+        const result =
+            db.prepare(`
+                DELETE FROM purchases
+                WHERE id = ?
+            `).run(
+                Number(req.params.id)
+            );
+
+
+        res.json({
+
+            success: true,
+
+            message: "Purchase deleted"
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: "Failed to delete purchase"
+
+        });
+
+    }
+
+});
+
+
+// ======================================================
 // EXPENSES
-// ==========================================
-
-
-// GET EXPENSES
+// ======================================================
 
 app.get("/api/expenses", (req, res) => {
 
@@ -937,38 +1416,55 @@ app.get("/api/expenses", (req, res) => {
             req.query.date || getToday();
 
 
-        const expenses = db
-            .prepare(`
+        const expenses =
+            db.prepare(`
                 SELECT *
+
                 FROM expenses
+
                 WHERE date = ?
+
                 ORDER BY id DESC
-            `)
-            .all(date);
+
+            `).all(date);
 
 
-        const total = expenses.reduce(
-            (sum, expense) =>
-                sum + Number(expense.amount),
-            0
-        );
+        const total =
+            db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(amount),
+                        0
+                    ) AS total
+
+                FROM expenses
+
+                WHERE date = ?
+
+            `).get(date);
 
 
         res.json({
-            success: true,
-            date,
-            total,
-            expenses
-        });
 
+            success: true,
+
+            expenses,
+
+            total:
+                number(total.total)
+
+        });
 
     } catch (error) {
 
         console.error(error);
 
         res.status(500).json({
+
             success: false,
-            message: "Failed to get expenses"
+
+            message: "Failed to load expenses"
+
         });
 
     }
@@ -976,76 +1472,54 @@ app.get("/api/expenses", (req, res) => {
 });
 
 
-// SAVE EXPENSE
-
 app.post("/api/expenses", (req, res) => {
 
     try {
 
-        const {
-            date,
-            description,
-            amount
-        } = req.body;
-
-
-        if (
-            !date ||
-            !description ||
-            amount === undefined
-        ) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Date, description and amount are required"
-            });
-
-        }
-
-
-        if (Number(amount) <= 0) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Expense amount must be greater than zero"
-            });
-
-        }
-
-
-        const result = db
-            .prepare(`
+        const result =
+            db.prepare(`
                 INSERT INTO expenses
                 (
                     date,
                     description,
                     amount
                 )
+
                 VALUES (?, ?, ?)
-            `)
-            .run(
-                date,
-                description.trim(),
-                amount
+
+            `).run(
+
+                req.body.date,
+
+                String(
+                    req.body.description || ""
+                ).trim(),
+
+                number(req.body.amount)
+
             );
 
 
         res.status(201).json({
-            success: true,
-            message: "Expense recorded",
-            id: result.lastInsertRowid
-        });
 
+            success: true,
+
+            message: "Expense saved",
+
+            id: result.lastInsertRowid
+
+        });
 
     } catch (error) {
 
         console.error(error);
 
         res.status(500).json({
+
             success: false,
-            message: "Failed to record expense"
+
+            message: "Failed to save expense"
+
         });
 
     }
@@ -1053,116 +1527,145 @@ app.post("/api/expenses", (req, res) => {
 });
 
 
-// ==========================================
+app.delete("/api/expenses/:id", (req, res) => {
+
+    try {
+
+        db.prepare(`
+            DELETE FROM expenses
+            WHERE id = ?
+        `).run(
+            Number(req.params.id)
+        );
+
+
+        res.json({
+
+            success: true,
+
+            message: "Expense deleted"
+
+        });
+
+    } catch (error) {
+
+        console.error(error);
+
+        res.status(500).json({
+
+            success: false,
+
+            message: "Failed to delete expense"
+
+        });
+
+    }
+
+});
+
+
+// ======================================================
 // RECONCILIATION
-// ==========================================
+// ======================================================
 
 app.post("/api/reconciliation", (req, res) => {
 
     try {
 
-        const {
-            date,
-            cashAtHand,
-            tillAmount
-        } = req.body;
+        const date =
+            req.body.date;
 
 
-        const reportDate =
-            date || getToday();
-
-
-        // SALES
-
-        const salesResult = db
-            .prepare(`
+        const sales =
+            db.prepare(`
                 SELECT
                     COALESCE(
-                        SUM(sales),
+                        SUM(total_amount),
                         0
                     ) AS total
-                FROM daily_stock
+
+                FROM sales
+
                 WHERE date = ?
-            `)
-            .get(reportDate);
 
-
-        // EXPENSES
-
-        const expensesResult = db
-            .prepare(`
-                SELECT
-                    COALESCE(
-                        SUM(amount),
-                        0
-                    ) AS total
-                FROM expenses
-                WHERE date = ?
-            `)
-            .get(reportDate);
-
-
-        // PURCHASES
-
-        const purchasesResult = db
-            .prepare(`
-                SELECT
-                    COALESCE(
-                        SUM(amount),
-                        0
-                    ) AS total
-                FROM purchases
-                WHERE date = ?
-            `)
-            .get(reportDate);
-
-
-        const totalSales =
-            Number(salesResult.total);
+            `).get(date);
 
 
         const expenses =
-            Number(expensesResult.total);
+            db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(amount),
+                        0
+                    ) AS total
+
+                FROM expenses
+
+                WHERE date = ?
+
+            `).get(date);
 
 
         const purchases =
-            Number(purchasesResult.total);
+            db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(amount),
+                        0
+                    ) AS total
+
+                FROM purchases
+
+                WHERE date = ?
+
+            `).get(date);
 
 
-        // EXPECTED MONEY
+        const totalSales =
+            number(sales.total);
+
+        const totalExpenses =
+            number(expenses.total);
+
+        const totalPurchases =
+            number(purchases.total);
+
 
         const expectedMoney =
             totalSales -
-            expenses -
-            purchases;
+            totalExpenses -
+            totalPurchases;
 
 
-        // ACTUAL MONEY
+        const cashAtHand =
+            number(req.body.cash_at_hand);
+
+
+        const tillAmount =
+            number(req.body.till_amount);
+
 
         const actualMoney =
-            Number(cashAtHand || 0) +
-            Number(tillAmount || 0);
+            cashAtHand +
+            tillAmount;
 
-
-        // DIFFERENCE
 
         const difference =
             actualMoney -
             expectedMoney;
 
 
-        let status;
+        let status = "BALANCED";
 
 
-        if (difference === 0) {
-
-            status = "BALANCED";
-
-        } else if (difference < 0) {
+        if (difference < -0.01) {
 
             status = "SHORTAGE";
 
-        } else {
+        }
+
+
+        if (difference > 0.01) {
 
             status = "SURPLUS";
 
@@ -1216,49 +1719,74 @@ app.post("/api/reconciliation", (req, res) => {
 
                 status =
                     excluded.status
-        `)
-        .run(
-            reportDate,
+
+        `).run(
+
+            date,
+
             totalSales,
-            expenses,
-            purchases,
+
+            totalExpenses,
+
+            totalPurchases,
+
             expectedMoney,
-            Number(cashAtHand || 0),
-            Number(tillAmount || 0),
+
+            cashAtHand,
+
+            tillAmount,
+
             actualMoney,
+
             difference,
+
             status
+
         );
 
 
         res.json({
+
             success: true,
 
-            report: {
-                date: reportDate,
-                totalSales,
-                expenses,
-                purchases,
-                expectedMoney,
-                cashAtHand:
-                    Number(cashAtHand || 0),
-                tillAmount:
-                    Number(tillAmount || 0),
-                actualMoney,
-                difference,
-                status
-            }
-        });
+            date,
 
+            totalSales,
+
+            expenses: totalExpenses,
+
+            purchases: totalPurchases,
+
+            expectedMoney,
+
+            cashAtHand,
+
+            tillAmount,
+
+            actualMoney,
+
+            difference,
+
+            status
+
+        });
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "RECONCILIATION ERROR:",
+            error
+        );
 
         res.status(500).json({
+
             success: false,
+
             message:
-                "Failed to calculate reconciliation"
+                "Failed to calculate reconciliation",
+
+            error: error.message
+
         });
 
     }
@@ -1266,9 +1794,9 @@ app.post("/api/reconciliation", (req, res) => {
 });
 
 
-// ==========================================
-// REPORT
-// ==========================================
+// ======================================================
+// DAILY REPORT
+// ======================================================
 
 app.get("/api/reports/daily", (req, res) => {
 
@@ -1278,94 +1806,247 @@ app.get("/api/reports/daily", (req, res) => {
             req.query.date || getToday();
 
 
-        const stock = db
-            .prepare(`
+        const rows =
+            db.prepare(`
                 SELECT
 
-                    ds.date,
+                    p.id,
 
                     p.name,
 
-                    ds.opening_quantity,
-
-                    ds.additions,
-
-                    ds.closing_quantity,
-
-                    ds.units_sold,
-
-                    ds.sales,
+                    p.selling_price,
 
                     p.purchase_price,
 
-                    (
-                        ds.units_sold *
-                        p.purchase_price
-                    ) AS cost_of_goods,
+                    COALESCE(
+                        ds.opening_quantity,
+                        0
+                    ) AS opening_quantity,
 
-                    (
-                        ds.sales -
+                    COALESCE(
+                        ds.additions,
+                        0
+                    ) AS additions,
+
+                    COALESCE(
+                        ds.closing_quantity,
+                        0
+                    ) AS closing_quantity,
+
+                    COALESCE(
+                        ds.units_sold,
+                        0
+                    ) AS units_sold,
+
+                    COALESCE(
+                        ds.sales,
+                        0
+                    ) AS sales,
+
+                    COALESCE(
                         (
-                            ds.units_sold *
-                            p.purchase_price
-                        )
-                    ) AS gross_profit
+                            SELECT SUM(si.quantity)
 
-                FROM daily_stock ds
+                            FROM sale_items si
 
-                JOIN products p
-                    ON p.id = ds.product_id
+                            INNER JOIN sales s
+                            ON s.id = si.sale_id
 
-                WHERE ds.date = ?
+                            WHERE si.product_id = p.id
+                            AND s.date = ?
+
+                        ),
+                        0
+                    ) AS recorded_units_sold,
+
+                    COALESCE(
+                        (
+                            SELECT SUM(si.total)
+
+                            FROM sale_items si
+
+                            INNER JOIN sales s
+                            ON s.id = si.sale_id
+
+                            WHERE si.product_id = p.id
+                            AND s.date = ?
+
+                        ),
+                        0
+                    ) AS receipt_sales
+
+                FROM products p
+
+                LEFT JOIN daily_stock ds
+
+                ON ds.product_id = p.id
+                AND ds.date = ?
+
+                WHERE p.active = 1
 
                 ORDER BY p.name ASC
-            `)
-            .all(date);
+
+            `).all(
+                date,
+                date,
+                date
+            );
 
 
-        const totals = stock.reduce(
-            (result, item) => {
+        let stockSales = 0;
 
-                result.sales +=
-                    Number(item.sales);
+        let receiptSales = 0;
 
-                result.cost +=
-                    Number(item.cost_of_goods);
+        let stockUnits = 0;
 
-                result.profit +=
-                    Number(item.gross_profit);
+        let receiptUnits = 0;
 
-                result.units +=
-                    Number(item.units_sold);
+        let cost = 0;
 
-                return result;
 
-            },
-            {
-                sales: 0,
-                cost: 0,
-                profit: 0,
-                units: 0
-            }
-        );
+        const products =
+            rows.map(row => {
+
+                const stockSold =
+                    number(row.units_sold);
+
+                const receiptSold =
+                    number(row.recorded_units_sold);
+
+                const receiptSale =
+                    number(row.receipt_sales);
+
+
+                const productCost =
+                    receiptSold *
+                    number(row.purchase_price);
+
+
+                stockSales +=
+                    number(row.sales);
+
+                receiptSales +=
+                    receiptSale;
+
+                stockUnits +=
+                    stockSold;
+
+                receiptUnits +=
+                    receiptSold;
+
+                cost +=
+                    productCost;
+
+
+                return {
+
+                    ...row,
+
+                    stock_variance:
+                        stockSold -
+                        receiptSold,
+
+                    cost_of_goods:
+                        productCost,
+
+                    gross_profit:
+                        receiptSale -
+                        productCost
+
+                };
+
+            });
+
+
+        const expenseResult =
+            db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(amount),
+                        0
+                    ) AS total
+
+                FROM expenses
+
+                WHERE date = ?
+
+            `).get(date);
+
+
+        const purchaseResult =
+            db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(amount),
+                        0
+                    ) AS total
+
+                FROM purchases
+
+                WHERE date = ?
+
+            `).get(date);
+
+
+        const expenses =
+            number(expenseResult.total);
+
+        const purchases =
+            number(purchaseResult.total);
 
 
         res.json({
-            success: true,
-            date,
-            stock,
-            totals
-        });
 
+            success: true,
+
+            date,
+
+            products,
+
+            totals: {
+
+                stockSales,
+
+                receiptSales,
+
+                units: stockUnits,
+
+                stockUnits,
+
+                receiptUnits,
+
+                cost,
+
+                profit:
+                    receiptSales - cost,
+
+                stockVariance:
+                    stockUnits - receiptUnits,
+
+                expenses,
+
+                purchases
+
+            }
+
+        });
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "REPORT ERROR:",
+            error
+        );
 
         res.status(500).json({
+
             success: false,
+
             message:
-                "Failed to generate daily report"
+                "Failed to load daily report",
+
+            error: error.message
+
         });
 
     }
@@ -1373,14 +2054,18 @@ app.get("/api/reports/daily", (req, res) => {
 });
 
 
-// ==========================================
-// START SERVER
-// ==========================================
+// ======================================================
+// START
+// ======================================================
 
 app.listen(PORT, () => {
 
-    console.log(
-        `Stock System backend running on port ${PORT}`
-    );
+    console.log("");
+    console.log("====================================");
+    console.log(" EXPRESS RETURNS STOCK SYSTEM");
+    console.log("====================================");
+    console.log(` Server running on port ${PORT}`);
+    console.log("====================================");
+    console.log("");
 
 });
