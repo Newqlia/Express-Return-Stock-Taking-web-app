@@ -56,6 +56,7 @@ body {
 }
 
 
+
 /* =====================================================
    SIDEBAR
 ===================================================== */
@@ -141,6 +142,7 @@ body {
     margin-top: 4px;
 
 }
+
 
 
 /* =====================================================
@@ -229,6 +231,7 @@ body {
 }
 
 
+
 /* =====================================================
    MAIN
 ===================================================== */
@@ -241,6 +244,11 @@ body {
 
 }
 
+
+
+/* =====================================================
+   TOP BAR
+===================================================== */
 
 .topbar {
 
@@ -257,13 +265,22 @@ body {
     border-bottom:
         1px solid var(--border);
 
-    padding: 18px 30px;
+    padding: 16px 30px;
 
     display: flex;
 
     align-items: center;
 
     justify-content: space-between;
+
+    gap: 20px;
+
+}
+
+
+.topbar-title {
+
+    min-width: 170px;
 
 }
 
@@ -286,6 +303,73 @@ body {
 }
 
 
+
+/* =====================================================
+   BUSINESS CONTROL
+===================================================== */
+
+.business-control {
+
+    display: flex;
+
+    align-items: end;
+
+    gap: 10px;
+
+    flex: 1;
+
+    justify-content: center;
+
+}
+
+
+.business-selector {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 5px;
+
+    min-width: 240px;
+
+}
+
+
+.business-selector label {
+
+    font-size: 11px;
+
+    color: var(--muted);
+
+    font-weight: 700;
+
+}
+
+
+.business-selector select {
+
+    min-width: 240px;
+
+    font-weight: 700;
+
+    border-color: #cbd5e1;
+
+}
+
+
+.business-control .primary-button {
+
+    white-space: nowrap;
+
+}
+
+
+
+/* =====================================================
+   DATE CONTROL
+===================================================== */
+
 .date-control {
 
     display: flex;
@@ -293,6 +377,8 @@ body {
     align-items: center;
 
     gap: 10px;
+
+    white-space: nowrap;
 
 }
 
@@ -306,6 +392,7 @@ body {
     font-weight: 700;
 
 }
+
 
 
 /* =====================================================
@@ -356,6 +443,7 @@ main {
     font-size: 14px;
 
 }
+
 
 
 /* =====================================================
@@ -417,6 +505,7 @@ main {
 }
 
 
+
 /* =====================================================
    SUMMARY
 ===================================================== */
@@ -468,6 +557,7 @@ main {
     font-size: 24px;
 
 }
+
 
 
 /* =====================================================
@@ -525,6 +615,7 @@ main {
     margin-bottom: 18px;
 
 }
+
 
 
 /* =====================================================
@@ -683,6 +774,7 @@ button {
 }
 
 
+
 /* =====================================================
    MESSAGES
 ===================================================== */
@@ -710,6 +802,7 @@ button {
     color: var(--danger);
 
 }
+
 
 
 /* =====================================================
@@ -790,6 +883,7 @@ tbody tr:hover {
 }
 
 
+
 /* =====================================================
    DATE
 ===================================================== */
@@ -825,6 +919,7 @@ tbody tr:hover {
     font-weight: 700;
 
 }
+
 
 
 /* =====================================================
@@ -979,6 +1074,7 @@ tbody tr:hover {
 }
 
 
+
 /* =====================================================
    RECONCILIATION
 ===================================================== */
@@ -1112,6 +1208,7 @@ tbody tr:hover {
 }
 
 
+
 /* =====================================================
    REPORTS
 ===================================================== */
@@ -1163,6 +1260,169 @@ tbody tr:hover {
 }
 
 
+
+/* =====================================================
+   BUSINESS MODAL
+===================================================== */
+
+.modal {
+
+    position: fixed;
+
+    inset: 0;
+
+    background: rgba(15, 23, 42, 0.55);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 20px;
+
+    z-index: 1000;
+
+    backdrop-filter: blur(4px);
+
+}
+
+
+.modal.hidden {
+
+    display: none;
+
+}
+
+
+.modal-content {
+
+    width: 100%;
+
+    max-width: 650px;
+
+    background: white;
+
+    border-radius: 16px;
+
+    padding: 25px;
+
+    box-shadow:
+        0 25px 60px rgba(0, 0, 0, 0.18);
+
+    animation: modalIn 0.2s ease;
+
+}
+
+
+@keyframes modalIn {
+
+    from {
+
+        opacity: 0;
+
+        transform: translateY(-10px) scale(0.98);
+
+    }
+
+    to {
+
+        opacity: 1;
+
+        transform: translateY(0) scale(1);
+
+    }
+
+}
+
+
+.modal-header {
+
+    display: flex;
+
+    align-items: flex-start;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-bottom: 25px;
+
+}
+
+
+.modal-header h2 {
+
+    font-size: 21px;
+
+    margin-bottom: 6px;
+
+}
+
+
+.modal-header p {
+
+    color: var(--muted);
+
+    font-size: 13px;
+
+    line-height: 1.5;
+
+}
+
+
+.modal-close {
+
+    border: none;
+
+    background: #f3f4f6;
+
+    color: #374151;
+
+    width: 34px;
+
+    height: 34px;
+
+    border-radius: 8px;
+
+    font-size: 23px;
+
+    line-height: 1;
+
+    cursor: pointer;
+
+}
+
+
+.modal-close:hover {
+
+    background: #e5e7eb;
+
+}
+
+
+.modal-form-grid {
+
+    grid-template-columns:
+        repeat(2, 1fr);
+
+}
+
+
+.modal-actions {
+
+    display: flex;
+
+    justify-content: flex-end;
+
+    gap: 10px;
+
+    margin-top: 20px;
+
+}
+
+
+
 /* =====================================================
    RECEIPT
 ===================================================== */
@@ -1182,12 +1442,14 @@ tbody tr:hover {
 
     }
 
+
     #receiptPrint,
     #receiptPrint * {
 
         visibility: visible;
 
     }
+
 
     #receiptPrint {
 
@@ -1213,6 +1475,7 @@ tbody tr:hover {
 
     }
 
+
     .receipt-header {
 
         text-align: center;
@@ -1226,17 +1489,20 @@ tbody tr:hover {
 
     }
 
+
     .receipt-header h2 {
 
         font-size: 16px;
 
     }
 
+
     .receipt-header p {
 
         font-size: 10px;
 
     }
+
 
     .receipt-details {
 
@@ -1249,11 +1515,13 @@ tbody tr:hover {
 
     }
 
+
     .receipt-details div {
 
         margin-bottom: 3px;
 
     }
+
 
     .receipt-item {
 
@@ -1264,6 +1532,7 @@ tbody tr:hover {
         margin-bottom: 5px;
 
     }
+
 
     .receipt-total {
 
@@ -1282,6 +1551,7 @@ tbody tr:hover {
 
     }
 
+
     .receipt-footer {
 
         text-align: center;
@@ -1298,11 +1568,37 @@ tbody tr:hover {
 }
 
 
+
 /* =====================================================
    RESPONSIVE
 ===================================================== */
 
-@media (max-width: 1100px) {
+@media (max-width: 1200px) {
+
+    .topbar {
+
+        flex-wrap: wrap;
+
+    }
+
+
+    .topbar-title {
+
+        flex: 1;
+
+    }
+
+
+    .business-control {
+
+        order: 3;
+
+        width: 100%;
+
+        justify-content: flex-start;
+
+    }
+
 
     .summary-grid,
     .report-summary {
@@ -1312,12 +1608,14 @@ tbody tr:hover {
 
     }
 
+
     .form-grid {
 
         grid-template-columns:
             repeat(2, 1fr);
 
     }
+
 
     .reconciliation-results {
 
@@ -1327,6 +1625,7 @@ tbody tr:hover {
     }
 
 }
+
 
 
 @media (max-width: 800px) {
@@ -1341,6 +1640,7 @@ tbody tr:hover {
 
     }
 
+
     .navigation {
 
         display: grid;
@@ -1350,11 +1650,13 @@ tbody tr:hover {
 
     }
 
+
     .sidebar-footer {
 
         display: none;
 
     }
+
 
     .main-container {
 
@@ -1362,23 +1664,67 @@ tbody tr:hover {
 
     }
 
+
     .topbar {
 
         position: relative;
 
         flex-direction: column;
 
-        align-items: flex-start;
+        align-items: stretch;
 
         gap: 15px;
 
     }
+
+
+    .topbar-title {
+
+        min-width: 0;
+
+    }
+
+
+    .business-control {
+
+        display: flex;
+
+        align-items: stretch;
+
+        flex-direction: column;
+
+        width: 100%;
+
+    }
+
+
+    .business-selector,
+    .business-selector select {
+
+        width: 100%;
+
+        min-width: 0;
+
+    }
+
+
+    .date-control {
+
+        width: 100%;
+
+        flex-direction: column;
+
+        align-items: stretch;
+
+    }
+
 
     main {
 
         padding: 18px;
 
     }
+
 
     .form-grid,
     .summary-grid,
@@ -1390,13 +1736,22 @@ tbody tr:hover {
 
     }
 
+
     .sale-line {
 
         grid-template-columns: 1fr;
 
     }
 
+
+    .modal-form-grid {
+
+        grid-template-columns: 1fr;
+
+    }
+
 }
+
 
 
 @media (max-width: 500px) {
@@ -1407,15 +1762,40 @@ tbody tr:hover {
 
     }
 
+
     .card {
 
         padding: 16px;
 
     }
 
+
     .page-heading h2 {
 
         font-size: 22px;
+
+    }
+
+
+    .modal {
+
+        padding: 10px;
+
+    }
+
+
+    .modal-content {
+
+        padding: 18px;
+
+        border-radius: 12px;
+
+    }
+
+
+    .modal-header {
+
+        margin-bottom: 18px;
 
     }
 

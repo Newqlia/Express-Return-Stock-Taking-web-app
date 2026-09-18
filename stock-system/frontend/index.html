@@ -141,11 +141,13 @@
 <div class="main-container">
 
 
-    <!-- TOP BAR -->
+    <!-- =================================================
+         TOP BAR
+    ================================================== -->
 
     <header class="topbar">
 
-        <div>
+        <div class="topbar-title">
 
             <h2 id="pageTitle">
                 Dashboard
@@ -157,6 +159,40 @@
 
         </div>
 
+
+        <!-- BUSINESS CONTROL -->
+
+        <div class="business-control">
+
+            <div class="business-selector">
+
+                <label for="businessSelect">
+                    Business
+                </label>
+
+                <select id="businessSelect">
+
+                    <option value="">
+                        Loading businesses...
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <button
+                type="button"
+                id="addBusinessButton"
+                class="primary-button"
+            >
+                + Add Business
+            </button>
+
+        </div>
+
+
+        <!-- DATE CONTROL -->
 
         <div class="date-control">
 
@@ -449,7 +485,7 @@
                         </h3>
 
                         <p>
-                            Products currently available in the system.
+                            Products currently available in the selected business.
                         </p>
 
                     </div>
@@ -1645,6 +1681,149 @@
 
 
     </main>
+
+</div>
+
+
+
+<!-- =====================================================
+     ADD BUSINESS MODAL
+===================================================== -->
+
+<div
+    id="businessModal"
+    class="modal hidden"
+>
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Add New Business
+                </h2>
+
+                <p>
+                    Create a separate workspace for another client or business.
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                id="closeBusinessModal"
+                class="modal-close"
+                aria-label="Close"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="businessForm">
+
+            <div class="form-grid modal-form-grid">
+
+                <div class="form-group">
+
+                    <label for="businessName">
+                        Business Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="businessName"
+                        name="business_name"
+                        placeholder="e.g. Mama Njeri Shop"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="businessPhone">
+                        Phone
+                    </label>
+
+                    <input
+                        type="text"
+                        id="businessPhone"
+                        name="phone"
+                        placeholder="e.g. 0712345678"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="businessLocation">
+                        Location
+                    </label>
+
+                    <input
+                        type="text"
+                        id="businessLocation"
+                        name="location"
+                        placeholder="e.g. Nairobi"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="businessType">
+                        Business Type
+                    </label>
+
+                    <input
+                        type="text"
+                        id="businessType"
+                        name="business_type"
+                        placeholder="e.g. Retail Shop"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <p
+                id="businessMessage"
+                class="form-message"
+            ></p>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    id="cancelBusinessButton"
+                    class="secondary-button"
+                >
+                    Cancel
+                </button>
+
+
+                <button
+                    type="submit"
+                    class="primary-button"
+                >
+                    Save Business
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
 
 </div>
 

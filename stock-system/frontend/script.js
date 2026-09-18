@@ -1,3441 +1,2868 @@
-/* =====================================================
-   EXPRESS RETURNS STOCK & FINANCE SYSTEM
-===================================================== */
-
-
 const API_URL =
     "https://stunning-space-bassoon-69v9r76w4q5525xq6-3000.app.github.dev";
 
+/* =====================================================
+   GLOBAL STATE
+===================================================== */
 
-let products = [];
-
+let businesses = [];
+let activeBusinessId =
+    localStorage.getItem("activeBusinessId") || "";
 
 let currentDate =
+    localStorage.getItem("stockSystemDate") ||
     new Date().toISOString().split("T")[0];
 
+let products = [];
+let dailyStock = [];
+let sales = [];
+let purchases = [];
+let expenses = [];
+
+let saleLines = [];
 
 /* =====================================================
-   FORMATTING
+   API
 ===================================================== */
-
-
-const money = value => {
-
-    return `KES ${Number(value || 0).toLocaleString(
-        "en-KE",
-        {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }
-    )}`;
-
-};
-
-
-const qty = value => {
-
-    return Number(value || 0).toLocaleString(
-        "en-KE",
-        {
-            maximumFractionDigits: 2
-        }
-    );
-
-};
-
-
-/* =====================================================
-   API HELPER
-===================================================== */
-
 
 const apiRequest = async (
     endpoint,
     options = {}
 ) => {
+    const requestOptions = {
+        ...options
+    };
+
+    if (requestOptions.body) {
+        requestOptions.headers = {
+            "Content-Type":
+                "application/json",
+            ...(requestOptions.headers || {})
+        };
+    }
 
     const response =
         await fetch(
             `${API_URL}${endpoint}`,
-            {
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-                ...options
-            }
+            requestOptions
         );
-
 
     let data;
 
-
     try {
-
         data =
             await response.json();
-
     } catch {
-
         throw new Error(
             `Server returned ${response.status}`
         );
-
     }
 
-
     if (!response.ok) {
-
         throw new Error(
             data.message ||
             `Request failed: ${response.status}`
         );
-
     }
 
-
     return data;
-
 };
 
-
 /* =====================================================
-   DATE HELPERS
+   HELPERS
 ===================================================== */
 
+function getBusinessQuery() {
+    if (!activeBusinessId) {
+        return "";
+    }
 
-function setDateValue(
-    id,
-    value
-) {
+    return `business_id=${encodeURIComponent(
+        activeBusinessId
+    )}`;
+}
 
+function requireBusiness() {
+    if (!activeBusinessId) {
+        console.error("No business selected.");
+        alert(
+            "Please select a business first."
+        );
+        return false;
+    }
+
+    return true;
+}
+
+function money(value) {
+    return Number(
+        value || 0
+    ).toLocaleString(
+        "en-KE",
+        {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }
+    );
+}
+
+function number(value) {
+    return Number(
+        value || 0
+    ).toLocaleString(
+        "en-KE",
+        {
+            maximumFractionDigits: 2
+        }
+    );
+}
+
+function today() {
+    return new Date()
+        .toISOString()
+        .split("T")[0];
+}
+
+function formatDate(date) {
+    if (!date) {
+        return "";
+    }
+
+    const d =
+        new Date(
+            `${date}T00:00:00`
+        );
+
+    if (
+        Number.isNaN(
+            d.getTime()
+        )
+    ) {
+        return date;
+    }
+
+    return d.toLocaleDateString(
+        "en-GB"
+    );
+}
+
+function setText(id, value) {
     const element =
         document.getElementById(id);
 
+    if (element) {
+        element.textContent =
+            value;
+    }
+}
+
+function setValue(id, value) {
+    const element =
+        document.getElementById(id);
 
     if (element) {
-
         element.value =
             value;
-
     }
-
 }
 
+function getValue(id) {
+    const element =
+        document.getElementById(id);
 
-function syncDates(
-    date
-) {
-
-    setDateValue(
-        "globalDate",
-        date
-    );
-
-    setDateValue(
-        "stockDate",
-        date
-    );
-
-    setDateValue(
-        "dailyStockDate",
-        date
-    );
-
-    setDateValue(
-        "reconciliationDate",
-        date
-    );
-
-    setDateValue(
-        "reportDate",
-        date
-    );
-
+    return element
+        ? element.value
+        : "";
 }
 
-
-function changeBusinessDate(
-    date
+function showMessage(
+    elementId,
+    message,
+    type = "success"
 ) {
+    const element =
+        document.getElementById(
+            elementId
+        );
 
-    if (!date) {
+    if (!element) {
         return;
     }
 
+    element.textContent =
+        message;
 
+    element.className =
+        `form-message ${type}`;
+
+    setTimeout(() => {
+        element.textContent =
+            "";
+    }, 4000);
+}
+
+/* =====================================================
+   BUSINESS MANAGEMENT
+===================================================== */
+
+async function loadBusinesses() {
+    try {
+        const data =
+            await apiRequest(
+                "/api/businesses"
+            );
+
+        businesses =
+            data.businesses || [];
+
+        renderBusinessSelect();
+
+        if (
+            !activeBusinessId &&
+            businesses.length
+        ) {
+            activeBusinessId =
+                String(
+                    businesses[0].id
+                );
+
+            localStorage.setItem(
+                "activeBusinessId",
+                activeBusinessId
+            );
+
+            renderBusinessSelect();
+        }
+
+        if (
+            activeBusinessId &&
+            !businesses.some(
+                business =>
+                    String(
+                        business.id
+                    ) ===
+                    String(
+                        activeBusinessId
+                    )
+            )
+        ) {
+            activeBusinessId =
+                businesses.length
+                    ? String(
+                        businesses[0].id
+                    )
+                    : "";
+
+            localStorage.setItem(
+                "activeBusinessId",
+                activeBusinessId
+            );
+
+            renderBusinessSelect();
+        }
+
+        updateBusinessDisplay();
+    } catch (error) {
+        console.error(
+            "Businesses error:",
+            error
+        );
+
+        const select =
+            document.getElementById(
+                "businessSelect"
+            );
+
+        if (select) {
+            select.innerHTML =
+                `
+                <option value="">
+                    Failed to load businesses
+                </option>
+                `;
+        }
+    }
+}
+
+function renderBusinessSelect() {
+    const select =
+        document.getElementById(
+            "businessSelect"
+        );
+
+    if (!select) {
+        return;
+    }
+
+    select.innerHTML =
+        "";
+
+    if (
+        !businesses.length
+    ) {
+        select.innerHTML =
+            `
+            <option value="">
+                No businesses
+            </option>
+            `;
+
+        return;
+    }
+
+    businesses.forEach(
+        business => {
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value =
+                business.id;
+
+            option.textContent =
+                business.business_name;
+
+            if (
+                String(
+                    business.id
+                ) ===
+                String(
+                    activeBusinessId
+                )
+            ) {
+                option.selected =
+                    true;
+            }
+
+            select.appendChild(
+                option
+            );
+        }
+    );
+}
+
+function updateBusinessDisplay() {
+    const business =
+        businesses.find(
+            item =>
+                String(
+                    item.id
+                ) ===
+                String(
+                    activeBusinessId
+                )
+        );
+
+    const title =
+        document.getElementById(
+            "businessNameDisplay"
+        );
+
+    if (title) {
+        title.textContent =
+            business
+                ? business.business_name
+                : "No Business";
+    }
+}
+
+async function createBusiness(event) {
+    event.preventDefault();
+
+    const businessName =
+        getValue(
+            "businessName"
+        ).trim();
+
+    const phone =
+        getValue(
+            "businessPhone"
+        ).trim();
+
+    const location =
+        getValue(
+            "businessLocation"
+        ).trim();
+
+    const businessType =
+        getValue(
+            "businessType"
+        ).trim();
+
+    if (!businessName) {
+        showMessage(
+            "businessMessage",
+            "Business name is required.",
+            "error"
+        );
+
+        return;
+    }
+
+    try {
+        const data =
+            await apiRequest(
+                "/api/businesses",
+                {
+                    method: "POST",
+                    body:
+                        JSON.stringify({
+                            business_name:
+                                businessName,
+                            phone,
+                            location,
+                            business_type:
+                                businessType
+                        })
+                }
+            );
+
+        await loadBusinesses();
+
+        if (
+            data.business &&
+            data.business.id
+        ) {
+            activeBusinessId =
+                String(
+                    data.business.id
+                );
+
+            localStorage.setItem(
+                "activeBusinessId",
+                activeBusinessId
+            );
+
+            renderBusinessSelect();
+            updateBusinessDisplay();
+        }
+
+        closeBusinessModal();
+
+        document
+            .getElementById(
+                "businessForm"
+            )
+            ?.reset();
+
+        await loadAll();
+
+        alert(
+            "Business created successfully."
+        );
+    } catch (error) {
+        console.error(
+            "Create business error:",
+            error
+        );
+
+        showMessage(
+            "businessMessage",
+            error.message,
+            "error"
+        );
+    }
+}
+
+function openBusinessModal() {
+    const modal =
+        document.getElementById(
+            "businessModal"
+        );
+
+    if (modal) {
+        modal.classList.remove(
+            "hidden"
+        );
+    }
+}
+
+function closeBusinessModal() {
+    const modal =
+        document.getElementById(
+            "businessModal"
+        );
+
+    if (modal) {
+        modal.classList.add(
+            "hidden"
+        );
+    }
+}
+
+async function changeBusiness(event) {
+    activeBusinessId =
+        event.target.value;
+
+    localStorage.setItem(
+        "activeBusinessId",
+        activeBusinessId
+    );
+
+    updateBusinessDisplay();
+
+    await loadAll();
+}
+
+/* =====================================================
+   DATE
+===================================================== */
+
+function updateDateDisplay() {
+    setText(
+        "todayDate",
+        formatDate(
+            currentDate
+        )
+    );
+
+    setValue(
+        "globalDate",
+        currentDate
+    );
+}
+
+function changeGlobalDate(event) {
     currentDate =
-        date;
+        event.target.value;
 
+    if (!currentDate) {
+        currentDate =
+            today();
+    }
 
-    syncDates(
+    localStorage.setItem(
+        "stockSystemDate",
         currentDate
     );
 
+    updateDateDisplay();
 
-    loadDailyStock();
-
-    loadSales();
-
-    loadPurchases();
-
-    loadExpenses();
-
-    loadReport();
-
-    loadReconciliationSummary();
-
-    updateDashboard();
-
+    loadAll();
 }
-
 
 /* =====================================================
    NAVIGATION
 ===================================================== */
 
+function setupNavigation() {
+    document
+        .querySelectorAll(
+            ".nav-item"
+        )
+        .forEach(button => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const targetId =
+                        button.dataset
+                            .section;
 
-document
-    .querySelectorAll(".nav-item")
-    .forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                const targetId =
-                    button.dataset.section;
-
-
-                const targetSection =
-                    document.getElementById(
-                        targetId
-                    );
-
-
-                console.log(
-                    "Navigation:",
-                    targetId,
-                    targetSection
-                );
-
-
-                if (!targetSection) {
-
-                    console.error(
-                        `Section #${targetId} was not found.`
-                    );
-
-                    return;
-
-                }
-
-
-                document
-                    .querySelectorAll(".nav-item")
-                    .forEach(item => {
-
-                        item.classList.remove(
-                            "active"
+                    const targetSection =
+                        document.getElementById(
+                            targetId
                         );
 
-                    });
-
-
-                document
-                    .querySelectorAll(".page-section")
-                    .forEach(section => {
-
-                        section.classList.remove(
-                            "active-section"
-                        );
-
-                    });
-
-
-                button.classList.add(
-                    "active"
-                );
-
-
-                targetSection.classList.add(
-                    "active-section"
-                );
-
-
-                const pageTitle =
-                    document.getElementById(
-                        "pageTitle"
+                    console.log(
+                        "Navigation:",
+                        targetId,
+                        targetSection
                     );
 
+                    if (
+                        !targetSection
+                    ) {
+                        console.error(
+                            `Section #${targetId} not found`
+                        );
 
-                if (pageTitle) {
+                        return;
+                    }
 
-                    pageTitle.textContent =
-                        button.textContent.trim();
+                    document
+                        .querySelectorAll(
+                            ".nav-item"
+                        )
+                        .forEach(
+                            btn =>
+                                btn.classList.remove(
+                                    "active"
+                                )
+                        );
 
+                    document
+                        .querySelectorAll(
+                            ".page-section"
+                        )
+                        .forEach(
+                            section =>
+                                section.classList.remove(
+                                    "active-section"
+                                )
+                        );
+
+                    button.classList.add(
+                        "active"
+                    );
+
+                    targetSection.classList.add(
+                        "active-section"
+                    );
+
+                    const pageTitle =
+                        document.getElementById(
+                            "pageTitle"
+                        );
+
+                    if (
+                        pageTitle
+                    ) {
+                        pageTitle.textContent =
+                            button.textContent.trim();
+                    }
+
+                    window.scrollTo({
+                        top: 0,
+                        behavior:
+                            "smooth"
+                    });
                 }
-
-
-                window.scrollTo({
-                    top: 0,
-                    behavior: "smooth"
-                });
-
-
-                if (
-                    targetId ===
-                    "products"
-                ) {
-
-                    loadProducts();
-
-                }
-
-
-                if (
-                    targetId ===
-                    "opening-stock"
-                ) {
-
-                    loadOpeningStock();
-
-                }
-
-
-                if (
-                    targetId ===
-                    "daily-stock"
-                ) {
-
-                    loadDailyStock();
-
-                }
-
-
-                if (
-                    targetId ===
-                    "sales"
-                ) {
-
-                    loadSales();
-
-                }
-
-
-                if (
-                    targetId ===
-                    "purchases"
-                ) {
-
-                    loadPurchases();
-
-                }
-
-
-                if (
-                    targetId ===
-                    "expenses"
-                ) {
-
-                    loadExpenses();
-
-                }
-
-
-                if (
-                    targetId ===
-                    "reconciliation"
-                ) {
-
-                    loadReconciliationSummary();
-
-                }
-
-
-                if (
-                    targetId ===
-                    "reports"
-                ) {
-
-                    loadReport();
-
-                }
-
-            }
-        );
-
-    });
-
-
-/* =====================================================
-   GLOBAL DATE
-===================================================== */
-
-
-const globalDate =
-    document.getElementById(
-        "globalDate"
-    );
-
-
-if (globalDate) {
-
-    globalDate.addEventListener(
-        "change",
-        event => {
-
-            changeBusinessDate(
-                event.target.value
             );
-
-        }
-    );
-
+        });
 }
-
-
-/* =====================================================
-   TODAY DATE
-===================================================== */
-
-
-function displayTodayDate() {
-
-    const todayDate =
-        document.getElementById(
-            "todayDate"
-        );
-
-
-    if (!todayDate) {
-        return;
-    }
-
-
-    const date =
-        new Date();
-
-
-    todayDate.textContent =
-        date.toLocaleDateString(
-            "en-KE",
-            {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric"
-            }
-        );
-
-}
-
 
 /* =====================================================
    PRODUCTS
 ===================================================== */
 
-
 async function loadProducts() {
+    if (!requireBusiness()) {
+        return;
+    }
 
     try {
-
         const data =
             await apiRequest(
-                "/api/products"
+                `/api/products?${getBusinessQuery()}`
             );
-
 
         products =
             data.products || [];
 
-
-        renderProductTables();
-
+        renderProducts();
         populateProductSelects();
-
-
-        const dashboardProducts =
-            document.getElementById(
-                "dashboardProducts"
-            );
-
-
-        if (dashboardProducts) {
-
-            dashboardProducts.textContent =
-                products.length;
-
-        }
-
-
     } catch (error) {
-
         console.error(
             "Products error:",
             error
         );
-
-
-        showMessage(
-            "formMessage",
-            error.message,
-            "error"
-        );
-
     }
-
 }
 
-
-function renderProductTables() {
-
+function renderProducts() {
     const tbody =
         document.getElementById(
             "productsTableBody"
         );
 
-
     if (!tbody) {
         return;
     }
 
+    tbody.innerHTML =
+        "";
 
     if (!products.length) {
-
-        tbody.innerHTML = `
-
+        tbody.innerHTML =
+            `
             <tr>
+                <td colspan="6">
+                    No products found.
+                </td>
+            </tr>
+            `;
 
-                <td
-                    colspan="6"
-                    class="empty-message"
-                >
-                    No products added yet.
+        return;
+    }
+
+    products.forEach(
+        product => {
+            const tr =
+                document.createElement(
+                    "tr"
+                );
+
+            tr.innerHTML =
+                `
+                <td>${product.id}</td>
+
+                <td>
+                    ${escapeHtml(
+                        product.name
+                    )}
                 </td>
 
-            </tr>
-
-        `;
-
-        return;
-
-    }
-
-
-    tbody.innerHTML =
-        products.map(
-            (product, index) => {
-
-                const profit =
-                    Number(
+                <td>
+                    KES ${money(
                         product.selling_price
-                    ) -
-                    Number(
+                    )}
+                </td>
+
+                <td>
+                    KES ${money(
                         product.purchase_price
-                    );
-
-
-                return `
-
-                    <tr>
-
-                        <td>
-                            ${index + 1}
-                        </td>
-
-                        <td>
-                            <strong>
-                                ${escapeHtml(product.name)}
-                            </strong>
-                        </td>
-
-                        <td>
-                            ${money(product.selling_price)}
-                        </td>
-
-                        <td>
-                            ${money(product.purchase_price)}
-                        </td>
-
-                        <td>
-                            ${money(profit)}
-                        </td>
-
-                        <td>
-
-                            <button
-                                class="btn-danger btn-small"
-                                onclick="deleteProduct(${product.id})"
-                            >
-                                Delete
-                            </button>
-
-                        </td>
-
-                    </tr>
-
-                `;
-
-            }
-        ).join("");
-
-}
-
-
-function populateProductSelects() {
-
-    const selects =
-        document.querySelectorAll(
-            ".sale-product, #purchaseProduct"
-        );
-
-
-    selects.forEach(select => {
-
-        const current =
-            select.value;
-
-
-        select.innerHTML = `
-
-            <option value="">
-                Select product
-            </option>
-
-        `;
-
-
-        products.forEach(
-            product => {
-
-                select.innerHTML += `
-
-                    <option
-                        value="${product.id}"
-                    >
-                        ${escapeHtml(product.name)}
-                    </option>
-
-                `;
-
-            }
-        );
-
-
-        if (current) {
-
-            select.value =
-                current;
-
-        }
-
-    });
-
-}
-
-
-/* =====================================================
-   ADD PRODUCT
-===================================================== */
-
-
-const productForm =
-    document.getElementById(
-        "productForm"
-    );
-
-
-if (productForm) {
-
-    productForm.addEventListener(
-        "submit",
-        async event => {
-
-            event.preventDefault();
-
-
-            const name =
-                document.getElementById(
-                    "productName"
-                ).value.trim();
-
-
-            const sellingPrice =
-                Number(
-                    document.getElementById(
-                        "sellingPrice"
-                    ).value
-                );
-
-
-            const purchasePrice =
-                Number(
-                    document.getElementById(
-                        "purchasePrice"
-                    ).value
-                );
-
-
-            if (!name) {
-
-                showMessage(
-                    "formMessage",
-                    "Enter a product name.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            if (
-                sellingPrice < 0 ||
-                purchasePrice < 0
-            ) {
-
-                showMessage(
-                    "formMessage",
-                    "Prices cannot be negative.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            try {
-
-                await apiRequest(
-                    "/api/products",
-                    {
-                        method: "POST",
-
-                        body:
-                            JSON.stringify({
-                                name,
-                                selling_price:
-                                    sellingPrice,
-                                purchase_price:
-                                    purchasePrice
-                            })
+                    )}
+                </td>
+
+                <td>
+                    ${
+                        Number(
+                            product.selling_price
+                        ) -
+                        Number(
+                            product.purchase_price
+                        )
                     }
-                );
+                </td>
 
+                <td>
+                    <button
+                        class="btn-danger btn-small"
+                        onclick="deleteProduct(${product.id})"
+                    >
+                        Delete
+                    </button>
+                </td>
+                `;
 
-                productForm.reset();
-
-
-                showMessage(
-                    "formMessage",
-                    "Product added successfully.",
-                    "success"
-                );
-
-
-                await loadProducts();
-
-                await loadOpeningStock();
-
-                await loadDailyStock();
-
-                await loadReport();
-
-                updateDashboard();
-
-
-            } catch (error) {
-
-                showMessage(
-                    "formMessage",
-                    error.message,
-                    "error"
-                );
-
-            }
-
+            tbody.appendChild(
+                tr
+            );
         }
     );
-
 }
 
+async function addProduct(event) {
+    event.preventDefault();
 
-/* =====================================================
-   REFRESH PRODUCTS
-===================================================== */
-
-
-const refreshProducts =
-    document.getElementById(
-        "refreshProducts"
-    );
-
-
-if (refreshProducts) {
-
-    refreshProducts.addEventListener(
-        "click",
-        loadProducts
-    );
-
-}
-
-
-/* =====================================================
-   DELETE PRODUCT
-===================================================== */
-
-
-async function deleteProduct(
-    id
-) {
-
-    const confirmed =
-        confirm(
-            "Delete this product?"
-        );
-
-
-    if (!confirmed) {
+    if (!requireBusiness()) {
         return;
     }
 
+    const name =
+        getValue(
+            "productName"
+        ).trim();
+
+    const sellingPrice =
+        Number(
+            getValue(
+                "sellingPrice"
+            )
+        );
+
+    const purchasePrice =
+        Number(
+            getValue(
+                "purchasePrice"
+            ) || 0
+        );
+
+    if (!name) {
+        alert(
+            "Enter a product name."
+        );
+
+        return;
+    }
+
+    if (
+        !Number.isFinite(
+            sellingPrice
+        ) ||
+        sellingPrice < 0
+    ) {
+        alert(
+            "Enter a valid selling price."
+        );
+
+        return;
+    }
 
     try {
-
         await apiRequest(
-            `/api/products/${id}`,
+            "/api/products",
+            {
+                method: "POST",
+                body:
+                    JSON.stringify({
+                        business_id:
+                            Number(
+                                activeBusinessId
+                            ),
+                        name,
+                        selling_price:
+                            sellingPrice,
+                        purchase_price:
+                            purchasePrice
+                    })
+            }
+        );
+
+        document
+            .getElementById(
+                "productForm"
+            )
+            ?.reset();
+
+        await loadProducts();
+        await loadDailyStock();
+
+        alert(
+            "Product added successfully."
+        );
+    } catch (error) {
+        console.error(
+            "Add product:",
+            error
+        );
+
+        alert(
+            error.message
+        );
+    }
+}
+
+async function deleteProduct(
+    productId
+) {
+    if (!requireBusiness()) {
+        return;
+    }
+
+    if (
+        !confirm(
+            "Delete this product?"
+        )
+    ) {
+        return;
+    }
+
+    try {
+        await apiRequest(
+            `/api/products/${productId}?${getBusinessQuery()}`,
             {
                 method: "DELETE"
             }
         );
 
-
         await loadProducts();
-
-        await loadOpeningStock();
-
-        await loadDailyStock();
-
-        await loadReport();
-
-
     } catch (error) {
+        console.error(
+            "Delete product:",
+            error
+        );
 
         alert(
             error.message
         );
-
     }
-
 }
 
+function populateProductSelects() {
+    document
+        .querySelectorAll(
+            ".product-select"
+        )
+        .forEach(
+            select => {
+                const oldValue =
+                    select.value;
+
+                select.innerHTML =
+                    `
+                    <option value="">
+                        Select product
+                    </option>
+                    `;
+
+                products.forEach(
+                    product => {
+                        const option =
+                            document.createElement(
+                                "option"
+                            );
+
+                        option.value =
+                            product.id;
+
+                        option.textContent =
+                            `${product.name} - KES ${product.selling_price}`;
+
+                        if (
+                            String(
+                                product.id
+                            ) ===
+                            String(
+                                oldValue
+                            )
+                        ) {
+                            option.selected =
+                                true;
+                        }
+
+                        select.appendChild(
+                            option
+                        );
+                    }
+                );
+            }
+        );
+}
 
 /* =====================================================
    OPENING STOCK
 ===================================================== */
 
-
 async function loadOpeningStock() {
+    if (!requireBusiness()) {
+        return;
+    }
 
+    try {
+        const data =
+            await apiRequest(
+                `/api/opening-stock?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
+            );
+
+        renderOpeningStock(
+            data.stock || []
+        );
+    } catch (error) {
+        console.error(
+            "Opening stock error:",
+            error
+        );
+    }
+}
+
+function renderOpeningStock(
+    stock
+) {
     const tbody =
         document.getElementById(
-            "openingStockTable"
+            "openingStockTableBody"
         );
-
 
     if (!tbody) {
         return;
     }
 
+    tbody.innerHTML =
+        "";
 
-    try {
-
-        const data =
-            await apiRequest(
-                `/api/opening-stock?date=${currentDate}`
-            );
-
-
-        const stock =
-            data.products ||
-            data.stock ||
-            [];
-
-
-        if (!products.length) {
-
-            tbody.innerHTML = `
-
-                <tr>
-
-                    <td
-                        colspan="3"
-                        class="empty-message"
-                    >
-                        Add products first.
-                    </td>
-
-                </tr>
-
-            `;
-
-            return;
-
-        }
-
-
-        const existing =
-            {};
-
-
-        stock.forEach(
-            item => {
-
-                existing[
-                    item.product_id
-                ] = item.opening_quantity;
-
-            }
-        );
-
-
-        tbody.innerHTML =
-            products.map(
-                product => {
-
-                    const value =
-                        existing[
+    products.forEach(
+        product => {
+            const existing =
+                stock.find(
+                    item =>
+                        Number(
+                            item.product_id
+                        ) ===
+                        Number(
                             product.id
-                        ] ?? 0;
+                        )
+                );
 
+            const tr =
+                document.createElement(
+                    "tr"
+                );
 
-                    return `
-
-                        <tr>
-
-                            <td>
-                                ${escapeHtml(product.name)}
-                            </td>
-
-                            <td>
-
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value="${value}"
-                                    id="opening-${product.id}"
-                                >
-
-                            </td>
-
-                            <td>
-
-                                <button
-                                    class="secondary-button"
-                                    onclick="saveOpeningStock(${product.id})"
-                                >
-                                    Save
-                                </button>
-
-                            </td>
-
-                        </tr>
-
-                    `;
-
-                }
-            ).join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "Opening stock error:",
-            error
-        );
-
-
-        tbody.innerHTML = `
-
-            <tr>
-
-                <td
-                    colspan="3"
-                    class="empty-message"
-                >
-                    Failed to load opening stock.
+            tr.innerHTML =
+                `
+                <td>
+                    ${escapeHtml(
+                        product.name
+                    )}
                 </td>
 
-            </tr>
+                <td>
+                    <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        class="opening-quantity"
+                        data-product-id="${product.id}"
+                        value="${
+                            existing
+                                ? existing.opening_quantity
+                                : 0
+                        }"
+                    >
+                </td>
 
-        `;
+                <td>
+                    KES ${money(
+                        product.selling_price
+                    )}
+                </td>
 
-    }
+                <td>
+                    <button
+                        class="primary-button btn-small"
+                        onclick="saveOpeningStock(${product.id})"
+                    >
+                        Save
+                    </button>
+                </td>
+                `;
 
+            tbody.appendChild(
+                tr
+            );
+        }
+    );
 }
-
 
 async function saveOpeningStock(
     productId
 ) {
-
-    const input =
-        document.getElementById(
-            `opening-${productId}`
-        );
-
-
-    if (!input) {
+    if (!requireBusiness()) {
         return;
     }
 
+    const input =
+        document.querySelector(
+            `.opening-quantity[data-product-id="${productId}"]`
+        );
 
     const quantity =
         Number(
-            input.value
+            input?.value || 0
         );
 
-
     try {
-
         await apiRequest(
             "/api/opening-stock",
             {
                 method: "POST",
-
                 body:
                     JSON.stringify({
-                        date: currentDate,
+                        business_id:
+                            Number(
+                                activeBusinessId
+                            ),
+                        date:
+                            currentDate,
                         product_id:
                             productId,
-                        opening_quantity:
-                            quantity
+                        quantity
                     })
             }
         );
 
+        await loadOpeningStock();
+        await loadDailyStock();
 
-        showMessage(
-            "formMessage",
-            "Opening stock saved.",
-            "success"
+        alert(
+            "Opening stock saved."
         );
-
-
-        loadDailyStock();
-
-
     } catch (error) {
+        console.error(
+            "Save opening stock:",
+            error
+        );
 
         alert(
             error.message
         );
-
     }
-
 }
-
 
 /* =====================================================
    DAILY STOCK
 ===================================================== */
 
-
 async function loadDailyStock() {
+    if (!requireBusiness()) {
+        return;
+    }
 
+    try {
+        const data =
+            await apiRequest(
+                `/api/daily-stock?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
+            );
+
+        dailyStock =
+            data.stock || [];
+
+        renderDailyStock();
+    } catch (error) {
+        console.error(
+            "Failed to load daily stock:",
+            error
+        );
+    }
+}
+
+function renderDailyStock() {
     const tbody =
         document.getElementById(
-            "dailyStockTable"
+            "dailyStockTableBody"
         );
-
 
     if (!tbody) {
         return;
     }
 
+    tbody.innerHTML =
+        "";
 
-    try {
+    products.forEach(
+        product => {
+            const row =
+                dailyStock.find(
+                    item =>
+                        Number(
+                            item.product_id
+                        ) ===
+                        Number(
+                            product.id
+                        )
+                );
 
-        const data =
-            await apiRequest(
-                `/api/daily-stock?date=${currentDate}`
-            );
+            const tr =
+                document.createElement(
+                    "tr"
+                );
 
+            const opening =
+                row
+                    ? Number(
+                        row.opening_quantity
+                    )
+                    : 0;
 
-        const rows =
-            data.products || [];
+            const additions =
+                row
+                    ? Number(
+                        row.additions
+                    )
+                    : 0;
 
+            const closing =
+                row
+                    ? Number(
+                        row.closing_quantity
+                    )
+                    : 0;
 
-        if (!rows.length) {
+            const sold =
+                opening +
+                additions -
+                closing;
 
-            tbody.innerHTML = `
+            const sales =
+                sold *
+                Number(
+                    product.selling_price
+                );
 
-                <tr>
-
-                    <td
-                        colspan="9"
-                        class="empty-message"
-                    >
-                        No stock records yet.
-                    </td>
-
-                </tr>
-
-            `;
-
-            return;
-
-        }
-
-
-        tbody.innerHTML =
-            rows.map(
-                product => {
-
-                    return `
-
-                        <tr>
-
-                            <td>
-                                <strong>
-                                    ${escapeHtml(product.name)}
-                                </strong>
-                            </td>
-
-                            <td>
-                                ${qty(product.opening_quantity)}
-                            </td>
-
-                            <td>
-                                ${qty(product.additions)}
-                            </td>
-
-                            <td>
-                                ${qty(product.available_quantity)}
-                            </td>
-
-                            <td>
-
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value="${product.closing_quantity || 0}"
-                                    id="closing-${product.id}"
-                                    style="width:100px"
-                                >
-
-                                <button
-                                    class="secondary-button btn-small"
-                                    onclick="saveDailyStock(${product.id})"
-                                >
-                                    Save
-                                </button>
-
-                            </td>
-
-                            <td>
-                                ${qty(product.units_sold)}
-                            </td>
-
-                            <td>
-                                ${qty(product.recorded_units_sold)}
-                            </td>
-
-                            <td>
-                                ${varianceBadge(product.stock_variance)}
-                            </td>
-
-                            <td>
-                                ${money(product.sales)}
-                            </td>
-
-                        </tr>
-
-                    `;
-
-                }
-            ).join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "Daily stock error:",
-            error
-        );
-
-
-        tbody.innerHTML = `
-
-            <tr>
-
-                <td
-                    colspan="9"
-                    class="empty-message"
-                >
-                    Failed to load daily stock.
+            tr.innerHTML =
+                `
+                <td>
+                    ${escapeHtml(
+                        product.name
+                    )}
                 </td>
 
-            </tr>
+                <td>
+                    <input
+                        type="number"
+                        min="0"
+                        class="daily-opening"
+                        data-product-id="${product.id}"
+                        value="${opening}"
+                    >
+                </td>
 
-        `;
+                <td>
+                    <input
+                        type="number"
+                        min="0"
+                        class="daily-additions"
+                        data-product-id="${product.id}"
+                        value="${additions}"
+                    >
+                </td>
 
-    }
+                <td>
+                    <input
+                        type="number"
+                        min="0"
+                        class="daily-closing"
+                        data-product-id="${product.id}"
+                        value="${closing}"
+                    >
+                </td>
 
+                <td>
+                    ${number(sold)}
+                </td>
+
+                <td>
+                    KES ${money(sales)}
+                </td>
+
+                <td>
+                    <button
+                        class="primary-button btn-small"
+                        onclick="saveDailyStock(${product.id})"
+                    >
+                        Save
+                    </button>
+                </td>
+                `;
+
+            tbody.appendChild(
+                tr
+            );
+        }
+    );
 }
-
 
 async function saveDailyStock(
     productId
 ) {
-
-    const input =
-        document.getElementById(
-            `closing-${productId}`
-        );
-
-
-    if (!input) {
+    if (!requireBusiness()) {
         return;
     }
 
+    const opening =
+        Number(
+            document.querySelector(
+                `.daily-opening[data-product-id="${productId}"]`
+            )?.value || 0
+        );
+
+    const additions =
+        Number(
+            document.querySelector(
+                `.daily-additions[data-product-id="${productId}"]`
+            )?.value || 0
+        );
 
     const closing =
         Number(
-            input.value
+            document.querySelector(
+                `.daily-closing[data-product-id="${productId}"]`
+            )?.value || 0
         );
 
+    const sold =
+        opening +
+        additions -
+        closing;
+
+    if (sold < 0) {
+        alert(
+            "Closing stock cannot be greater than opening stock plus additions."
+        );
+
+        return;
+    }
 
     try {
-
         await apiRequest(
             "/api/daily-stock",
             {
                 method: "POST",
-
                 body:
                     JSON.stringify({
-                        date: currentDate,
+                        business_id:
+                            Number(
+                                activeBusinessId
+                            ),
+                        date:
+                            currentDate,
                         product_id:
                             productId,
+                        opening_quantity:
+                            opening,
+                        additions,
                         closing_quantity:
                             closing
                     })
             }
         );
 
-
         await loadDailyStock();
+        await loadDashboard();
 
-        await loadReport();
-
-        updateDashboard();
-
-
+        alert(
+            "Daily stock saved."
+        );
     } catch (error) {
+        console.error(
+            "Save daily stock:",
+            error
+        );
 
         alert(
             error.message
         );
-
     }
-
 }
 
-
 /* =====================================================
-   SALES LINE
+   SALES
 ===================================================== */
 
+function addSaleLine() {
+    const container =
+        document.getElementById(
+            "saleLines"
+        );
 
-function updateSaleLine(
-    line
-) {
+    if (!container) {
+        return;
+    }
 
-    const productSelect =
+    const line =
+        document.createElement(
+            "div"
+        );
+
+    line.className =
+        "sale-line";
+
+    line.innerHTML =
+        `
+        <select class="sale-product product-select">
+            <option value="">
+                Select product
+            </option>
+        </select>
+
+        <input
+            type="number"
+            min="1"
+            step="1"
+            value="1"
+            class="sale-quantity"
+            placeholder="Qty"
+        >
+
+        <input
+            type="number"
+            min="0"
+            step="0.01"
+            class="sale-price"
+            placeholder="Price"
+        >
+
+        <span class="sale-line-total">
+            KES 0.00
+        </span>
+
+        <button
+            type="button"
+            class="remove-sale-line btn-danger"
+        >
+            ×
+        </button>
+        `;
+
+    container.appendChild(
+        line
+    );
+
+    const select =
         line.querySelector(
             ".sale-product"
         );
 
-
-    const quantityInput =
-        line.querySelector(
-            ".sale-quantity"
-        );
-
-
-    const totalInput =
-        line.querySelector(
-            ".sale-line-total"
-        );
-
-
-    const productId =
-        Number(
-            productSelect.value
-        );
-
-
-    const quantity =
-        Number(
-            quantityInput.value
-        );
-
-
-    const product =
-        products.find(
-            item =>
-                Number(item.id) ===
-                productId
-        );
-
-
-    if (
-        !product ||
-        !quantity
-    ) {
-
-        totalInput.value =
-            "KES 0.00";
-
-        return;
-
-    }
-
-
-    const total =
-        Number(
-            product.selling_price
-        ) *
-        quantity;
-
-
-    totalInput.value =
-        money(total);
-
-}
-
-
-function updateSaleTotal() {
-
-    const lines =
-        document.querySelectorAll(
-            ".sale-line"
-        );
-
-
-    let total = 0;
-
-
-    lines.forEach(
-        line => {
-
-            const productId =
-                Number(
-                    line.querySelector(
-                        ".sale-product"
-                    ).value
+    products.forEach(
+        product => {
+            const option =
+                document.createElement(
+                    "option"
                 );
 
+            option.value =
+                product.id;
 
-            const quantity =
-                Number(
-                    line.querySelector(
-                        ".sale-quantity"
-                    ).value
-                );
+            option.textContent =
+                `${product.name} - KES ${product.selling_price}`;
 
+            select.appendChild(
+                option
+            );
+        }
+    );
 
+    select.addEventListener(
+        "change",
+        () => {
             const product =
                 products.find(
                     item =>
-                        Number(item.id) ===
-                        productId
+                        String(
+                            item.id
+                        ) ===
+                        String(
+                            select.value
+                        )
                 );
 
+            const price =
+                line.querySelector(
+                    ".sale-price"
+                );
 
-            if (product) {
-
-                total +=
-                    Number(
-                        product.selling_price
-                    ) *
-                    quantity;
-
+            if (
+                product &&
+                price
+            ) {
+                price.value =
+                    product.selling_price;
             }
 
+            calculateSaleTotal();
         }
     );
 
-
-    const saleTotal =
-        document.getElementById(
-            "saleTotal"
-        );
-
-
-    if (saleTotal) {
-
-        saleTotal.textContent =
-            money(total);
-
-    }
-
-
-    return total;
-
-}
-
-
-/* =====================================================
-   SALE EVENTS
-===================================================== */
-
-
-document.addEventListener(
-    "input",
-    event => {
-
-        if (
-            event.target.matches(
-                ".sale-quantity"
-            )
-        ) {
-
-            const line =
-                event.target.closest(
-                    ".sale-line"
-                );
-
-
-            if (line) {
-
-                updateSaleLine(
-                    line
-                );
-
-                updateSaleTotal();
-
-            }
-
-        }
-
-    }
-);
-
-
-document.addEventListener(
-    "change",
-    event => {
-
-        if (
-            event.target.matches(
-                ".sale-product"
-            )
-        ) {
-
-            const line =
-                event.target.closest(
-                    ".sale-line"
-                );
-
-
-            if (line) {
-
-                updateSaleLine(
-                    line
-                );
-
-                updateSaleTotal();
-
-            }
-
-        }
-
-    }
-);
-
-
-/* =====================================================
-   ADD SALE ITEM
-===================================================== */
-
-
-const addSaleItem =
-    document.getElementById(
-        "addSaleItem"
+    line.querySelector(
+        ".sale-quantity"
+    ).addEventListener(
+        "input",
+        calculateSaleTotal
     );
 
+    line.querySelector(
+        ".sale-price"
+    ).addEventListener(
+        "input",
+        calculateSaleTotal
+    );
 
-if (addSaleItem) {
-
-    addSaleItem.addEventListener(
+    line.querySelector(
+        ".remove-sale-line"
+    ).addEventListener(
         "click",
         () => {
-
-            const container =
-                document.getElementById(
-                    "saleItems"
-                );
-
-
-            const line =
-                document.createElement(
-                    "div"
-                );
-
-
-            line.className =
-                "sale-line";
-
-
-            line.innerHTML = `
-
-                <div class="form-group">
-
-                    <label>
-                        Product
-                    </label>
-
-                    <select
-                        class="sale-product"
-                        required
-                    >
-
-                        <option value="">
-                            Select product
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>
-                        Quantity
-                    </label>
-
-                    <input
-                        type="number"
-                        class="sale-quantity"
-                        min="0.01"
-                        step="0.01"
-                        value="1"
-                        required
-                    >
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>
-                        Total
-                    </label>
-
-                    <input
-                        type="text"
-                        class="sale-line-total"
-                        value="KES 0.00"
-                        readonly
-                    >
-
-                </div>
-
-
-                <button
-                    type="button"
-                    class="remove-sale-line"
-                >
-                    Remove
-                </button>
-
-            `;
-
-
-            container.appendChild(
-                line
-            );
-
-
-            populateProductSelects();
-
+            line.remove();
+            calculateSaleTotal();
         }
     );
 
+    calculateSaleTotal();
 }
 
+function calculateSaleTotal() {
+    let total = 0;
 
-/* =====================================================
-   REMOVE SALE LINE
-===================================================== */
+    document
+        .querySelectorAll(
+            ".sale-line"
+        )
+        .forEach(
+            line => {
+                const quantity =
+                    Number(
+                        line.querySelector(
+                            ".sale-quantity"
+                        )?.value || 0
+                    );
 
+                const price =
+                    Number(
+                        line.querySelector(
+                            ".sale-price"
+                        )?.value || 0
+                    );
 
-document.addEventListener(
-    "click",
-    event => {
+                const lineTotal =
+                    quantity *
+                    price;
 
-        if (
-            event.target.matches(
-                ".remove-sale-line"
-            )
-        ) {
+                total +=
+                    lineTotal;
 
-            const lines =
-                document.querySelectorAll(
-                    ".sale-line"
-                );
+                const totalElement =
+                    line.querySelector(
+                        ".sale-line-total"
+                    );
 
-
-            if (lines.length <= 1) {
-
-                alert(
-                    "At least one sale item is required."
-                );
-
-                return;
-
+                if (
+                    totalElement
+                ) {
+                    totalElement.textContent =
+                        `KES ${money(
+                            lineTotal
+                        )}`;
+                }
             }
+        );
 
-
-            event.target
-                .closest(".sale-line")
-                .remove();
-
-
-            updateSaleTotal();
-
-        }
-
-    }
-);
-
-
-/* =====================================================
-   COMPLETE SALE
-===================================================== */
-
-
-const saleForm =
-    document.getElementById(
-        "saleForm"
+    setText(
+        "saleGrandTotal",
+        `KES ${money(total)}`
     );
 
+    setText(
+        "salesTotal",
+        `KES ${money(total)}`
+    );
 
-if (saleForm) {
+    return total;
+}
 
-    saleForm.addEventListener(
-        "submit",
-        async event => {
+function collectSaleItems() {
+    const items = [];
 
-            event.preventDefault();
-
-
-            const lines =
-                document.querySelectorAll(
-                    ".sale-line"
-                );
-
-
-            const items = [];
-
-
-            for (
-                const line of lines
-            ) {
-
+    document
+        .querySelectorAll(
+            ".sale-line"
+        )
+        .forEach(
+            line => {
                 const productId =
                     Number(
                         line.querySelector(
                             ".sale-product"
-                        ).value
+                        )?.value || 0
                     );
-
 
                 const quantity =
                     Number(
                         line.querySelector(
                             ".sale-quantity"
-                        ).value
+                        )?.value || 0
                     );
 
+                const price =
+                    Number(
+                        line.querySelector(
+                            ".sale-price"
+                        )?.value || 0
+                    );
 
                 if (
-                    !productId ||
-                    quantity <= 0
+                    productId &&
+                    quantity > 0
                 ) {
-
-                    showMessage(
-                        "saleMessage",
-                        "Select a product and enter a valid quantity.",
-                        "error"
-                    );
-
-                    return;
-
+                    items.push({
+                        product_id:
+                            productId,
+                        quantity,
+                        selling_price:
+                            price
+                    });
                 }
-
-
-                items.push({
-                    product_id:
-                        productId,
-                    quantity:
-                        quantity
-                });
-
             }
-
-
-            const paymentMethod =
-                document.getElementById(
-                    "paymentMethod"
-                ).value;
-
-
-            try {
-
-                const result =
-                    await apiRequest(
-                        "/api/sales",
-                        {
-                            method: "POST",
-
-                            body:
-                                JSON.stringify({
-                                    date:
-                                        currentDate,
-
-                                    payment_method:
-                                        paymentMethod,
-
-                                    items:
-                                        items
-                                })
-                        }
-                    );
-
-
-                showMessage(
-                    "saleMessage",
-                    `Sale completed. Receipt ${result.receiptNumber}`,
-                    "success"
-                );
-
-
-                saleForm.reset();
-
-
-                const saleItems =
-                    document.getElementById(
-                        "saleItems"
-                    );
-
-
-                saleItems.innerHTML = `
-
-                    <div class="sale-line">
-
-                        <div class="form-group">
-
-                            <label>
-                                Product
-                            </label>
-
-                            <select
-                                class="sale-product"
-                                required
-                            >
-
-                                <option value="">
-                                    Select product
-                                </option>
-
-                            </select>
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>
-                                Quantity
-                            </label>
-
-                            <input
-                                type="number"
-                                class="sale-quantity"
-                                min="0.01"
-                                step="0.01"
-                                value="1"
-                                required
-                            >
-
-                        </div>
-
-
-                        <div class="form-group">
-
-                            <label>
-                                Total
-                            </label>
-
-                            <input
-                                type="text"
-                                class="sale-line-total"
-                                value="KES 0.00"
-                                readonly
-                            >
-
-                        </div>
-
-
-                        <button
-                            type="button"
-                            class="remove-sale-line"
-                        >
-                            Remove
-                        </button>
-
-                    </div>
-
-                `;
-
-
-                populateProductSelects();
-
-                updateSaleTotal();
-
-                await loadSales();
-
-                await loadDailyStock();
-
-                await loadReport();
-
-                await loadReconciliationSummary();
-
-                updateDashboard();
-
-
-                if (
-                    result.saleId
-                ) {
-
-                    await printReceipt(
-                        result.saleId
-                    );
-
-                }
-
-
-            } catch (error) {
-
-                showMessage(
-                    "saleMessage",
-                    error.message,
-                    "error"
-                );
-
-            }
-
-        }
-    );
-
-}
-
-
-/* =====================================================
-   LOAD SALES
-===================================================== */
-
-
-async function loadSales() {
-
-    const list =
-        document.getElementById(
-            "salesList"
         );
 
+    return items;
+}
 
-    if (!list) {
+async function completeSale(
+    event
+) {
+    event.preventDefault();
+
+    if (!requireBusiness()) {
         return;
     }
 
+    const items =
+        collectSaleItems();
 
-    try {
-
-        const data =
-            await apiRequest(
-                `/api/sales?date=${currentDate}`
-            );
-
-
-        const sales =
-            data.sales || [];
-
-
-        const total =
-            Number(
-                data.total ||
-                data.totalSales ||
-                0
-            );
-
-
-        const totalSales =
-            document.getElementById(
-                "totalSales"
-            );
-
-
-        if (totalSales) {
-
-            totalSales.textContent =
-                total.toLocaleString(
-                    "en-KE",
-                    {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }
-                );
-
-        }
-
-
-        if (!sales.length) {
-
-            list.innerHTML = `
-
-                <div class="empty-state">
-                    No sales recorded yet.
-                </div>
-
-            `;
-
-            return;
-
-        }
-
-
-        list.innerHTML =
-            sales.map(
-                sale => {
-
-                    return `
-
-                        <div class="transaction-row">
-
-                            <div class="transaction-main">
-
-                                <strong>
-                                    ${escapeHtml(
-                                        sale.receipt_number
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHtml(
-                                        sale.payment_method
-                                    )}
-                                    •
-                                    ${sale.item_count || 0}
-                                    item(s)
-                                </span>
-
-                            </div>
-
-
-                            <div>
-
-                                <strong>
-                                    ${money(
-                                        sale.total_amount
-                                    )}
-                                </strong>
-
-                            </div>
-
-
-                            <div class="transaction-actions">
-
-                                <button
-                                    class="secondary-button btn-small"
-                                    onclick="printReceipt(${sale.id})"
-                                >
-                                    Print
-                                </button>
-
-                                <button
-                                    class="btn-danger btn-small"
-                                    onclick="deleteSale(${sale.id})"
-                                >
-                                    Delete
-                                </button>
-
-                            </div>
-
-                        </div>
-
-                    `;
-
-                }
-            ).join("");
-
-
-    } catch (error) {
-
-        console.error(
-            "Sales error:",
-            error
+    if (!items.length) {
+        alert(
+            "Add at least one sale item."
         );
 
-
-        list.innerHTML = `
-
-            <div class="empty-state">
-                Failed to load sales.
-            </div>
-
-        `;
-
+        return;
     }
 
-}
-
-
-/* =====================================================
-   PRINT RECEIPT
-===================================================== */
-
-
-async function printReceipt(
-    saleId
-) {
+    const paymentMethod =
+        getValue(
+            "paymentMethod"
+        ) ||
+        getValue(
+            "salePaymentMethod"
+        ) ||
+        "CASH";
 
     try {
-
         const data =
             await apiRequest(
-                `/api/sales/${saleId}`
+                "/api/sales",
+                {
+                    method: "POST",
+                    body:
+                        JSON.stringify({
+                            business_id:
+                                Number(
+                                    activeBusinessId
+                                ),
+                            date:
+                                currentDate,
+                            payment_method:
+                                paymentMethod,
+                            items
+                        })
+                }
             );
 
+        await loadSales();
+        await loadDashboard();
 
-        const sale =
-            data.sale;
+        clearSaleForm();
 
+        setText(
+            "lastReceiptNumber",
+            data.receiptNumber ||
+                ""
+        );
 
-        if (!sale) {
-
-            throw new Error(
-                "Sale not found."
-            );
-
-        }
-
-
-        document.getElementById(
-            "receiptNumber"
-        ).textContent =
-            sale.receipt_number;
-
-
-        document.getElementById(
-            "receiptDate"
-        ).textContent =
-            sale.date;
-
-
-        document.getElementById(
-            "receiptPayment"
-        ).textContent =
-            sale.payment_method;
-
-
-        const receiptItems =
-            document.getElementById(
-                "receiptItems"
-            );
-
-
-        receiptItems.innerHTML =
-            sale.items.map(
-                item => `
-
-                    <div class="receipt-item">
-
-                        <span>
-                            ${escapeHtml(item.name)}
-                            x${qty(item.quantity)}
-                        </span>
-
-                        <strong>
-                            ${money(item.total)}
-                        </strong>
-
-                    </div>
-
-                `
-            ).join("");
-
-
-        document.getElementById(
-            "receiptTotal"
-        ).textContent =
-            money(
-                sale.total_amount
-            );
-
-
-        window.print();
-
-
+        alert(
+            `Sale completed. Receipt: ${data.receiptNumber}`
+        );
     } catch (error) {
+        console.error(
+            "Complete sale:",
+            error
+        );
 
         alert(
             error.message
         );
-
     }
-
 }
 
-
-/* =====================================================
-   DELETE SALE
-===================================================== */
-
-
-async function deleteSale(
-    id
-) {
-
-    const confirmed =
-        confirm(
-            "Delete this receipt?"
+function clearSaleForm() {
+    const container =
+        document.getElementById(
+            "saleLines"
         );
 
+    if (container) {
+        container.innerHTML =
+            "";
+    }
 
-    if (!confirmed) {
+    addSaleLine();
+
+    const form =
+        document.getElementById(
+            "salesForm"
+        );
+
+    if (form) {
+        form.reset();
+    }
+
+    calculateSaleTotal();
+}
+
+async function loadSales() {
+    if (!requireBusiness()) {
         return;
     }
 
+    try {
+        const data =
+            await apiRequest(
+                `/api/sales?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
+            );
+
+        sales =
+            data.sales || [];
+
+        renderSales();
+    } catch (error) {
+        console.error(
+            "Sales error:",
+            error
+        );
+    }
+}
+
+function renderSales() {
+    const tbody =
+        document.getElementById(
+            "salesTableBody"
+        );
+
+    if (!tbody) {
+        return;
+    }
+
+    tbody.innerHTML =
+        "";
+
+    if (!sales.length) {
+        tbody.innerHTML =
+            `
+            <tr>
+                <td colspan="6">
+                    No sales recorded.
+                </td>
+            </tr>
+            `;
+
+        return;
+    }
+
+    sales.forEach(
+        sale => {
+            const tr =
+                document.createElement(
+                    "tr"
+                );
+
+            tr.innerHTML =
+                `
+                <td>
+                    ${escapeHtml(
+                        sale.receipt_number
+                    )}
+                </td>
+
+                <td>
+                    ${formatDate(
+                        sale.date
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        sale.payment_method
+                    )}
+                </td>
+
+                <td>
+                    KES ${money(
+                        sale.total_amount
+                    )}
+                </td>
+
+                <td>
+                    ${formatDate(
+                        sale.created_at?.split(
+                            " "
+                        )[0]
+                    )}
+                </td>
+
+                <td>
+                    <button
+                        class="secondary-button btn-small"
+                        onclick="printReceipt(${sale.id})"
+                    >
+                        Print
+                    </button>
+
+                    <button
+                        class="btn-danger btn-small"
+                        onclick="deleteSale(${sale.id})"
+                    >
+                        Delete
+                    </button>
+                </td>
+                `;
+
+            tbody.appendChild(
+                tr
+            );
+        }
+    );
+}
+
+async function deleteSale(
+    saleId
+) {
+    if (!requireBusiness()) {
+        return;
+    }
+
+    if (
+        !confirm(
+            "Delete this sale?"
+        )
+    ) {
+        return;
+    }
 
     try {
-
         await apiRequest(
-            `/api/sales/${id}`,
+            `/api/sales/${saleId}?${getBusinessQuery()}`,
             {
                 method: "DELETE"
             }
         );
 
-
         await loadSales();
+        await loadDashboard();
 
-        await loadDailyStock();
-
-        await loadReport();
-
-        await loadReconciliationSummary();
-
-        updateDashboard();
-
-
+        alert(
+            "Sale deleted."
+        );
     } catch (error) {
+        console.error(
+            "Delete sale:",
+            error
+        );
 
         alert(
             error.message
         );
-
     }
-
 }
 
+async function printReceipt(
+    saleId
+) {
+    if (!requireBusiness()) {
+        return;
+    }
+
+    try {
+        const data =
+            await apiRequest(
+                `/api/sales/${saleId}?${getBusinessQuery()}`
+            );
+
+        renderReceipt(
+            data.sale,
+            data.items || []
+        );
+
+        window.print();
+    } catch (error) {
+        console.error(
+            "Print receipt:",
+            error
+        );
+
+        alert(
+            error.message
+        );
+    }
+}
+
+function renderReceipt(
+    sale,
+    items
+) {
+    const receipt =
+        document.getElementById(
+            "receiptPrint"
+        );
+
+    if (!receipt) {
+        return;
+    }
+
+    const business =
+        businesses.find(
+            item =>
+                String(
+                    item.id
+                ) ===
+                String(
+                    activeBusinessId
+                )
+        );
+
+    receipt.innerHTML =
+        `
+        <div class="receipt-header">
+            <h2>
+                ${escapeHtml(
+                    business
+                        ?.business_name ||
+                        "Business"
+                )}
+            </h2>
+
+            <p>
+                ${escapeHtml(
+                    business
+                        ?.phone ||
+                        ""
+                )}
+            </p>
+
+            <p>
+                ${escapeHtml(
+                    business
+                        ?.location ||
+                        ""
+                )}
+            </p>
+
+            <h3>
+                RECEIPT
+            </h3>
+        </div>
+
+        <div class="receipt-info">
+            <p>
+                <strong>Receipt:</strong>
+                ${escapeHtml(
+                    sale.receipt_number
+                )}
+            </p>
+
+            <p>
+                <strong>Date:</strong>
+                ${formatDate(
+                    sale.date
+                )}
+            </p>
+
+            <p>
+                <strong>Payment:</strong>
+                ${escapeHtml(
+                    sale.payment_method
+                )}
+            </p>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                ${items
+                    .map(
+                        item =>
+                            `
+                            <tr>
+                                <td>
+                                    ${escapeHtml(
+                                        item.name
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${number(
+                                        item.quantity
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${money(
+                                        item.selling_price
+                                    )}
+                                </td>
+
+                                <td>
+                                    ${money(
+                                        item.total
+                                    )}
+                                </td>
+                            </tr>
+                            `
+                    )
+                    .join("")}
+            </tbody>
+        </table>
+
+        <div class="receipt-total">
+            TOTAL:
+            KES ${money(
+                sale.total_amount
+            )}
+        </div>
+
+        <p class="receipt-thank-you">
+            Thank you for your business.
+        </p>
+        `;
+}
 
 /* =====================================================
    PURCHASES
 ===================================================== */
 
-
-const savePurchase =
-    document.getElementById(
-        "savePurchase"
-    );
-
-
-if (savePurchase) {
-
-    savePurchase.addEventListener(
-        "click",
-        async () => {
-
-            const productId =
-                Number(
-                    document.getElementById(
-                        "purchaseProduct"
-                    ).value
-                );
-
-
-            const quantity =
-                Number(
-                    document.getElementById(
-                        "purchaseQuantity"
-                    ).value
-                );
-
-
-            const amount =
-                Number(
-                    document.getElementById(
-                        "purchaseAmount"
-                    ).value
-                );
-
-
-            if (
-                !productId ||
-                quantity <= 0 ||
-                amount < 0
-            ) {
-
-                showMessage(
-                    "purchaseMessage",
-                    "Enter valid purchase details.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            try {
-
-                await apiRequest(
-                    "/api/purchases",
-                    {
-                        method: "POST",
-
-                        body:
-                            JSON.stringify({
-                                date:
-                                    currentDate,
-                                product_id:
-                                    productId,
-                                quantity:
-                                    quantity,
-                                amount:
-                                    amount
-                            })
-                    }
-                );
-
-
-                document.getElementById(
-                    "purchaseQuantity"
-                ).value = "";
-
-
-                document.getElementById(
-                    "purchaseAmount"
-                ).value = "";
-
-
-                showMessage(
-                    "purchaseMessage",
-                    "Purchase recorded successfully.",
-                    "success"
-                );
-
-
-                await loadPurchases();
-
-                await loadDailyStock();
-
-                await loadReport();
-
-                await loadReconciliationSummary();
-
-                updateDashboard();
-
-
-            } catch (error) {
-
-                showMessage(
-                    "purchaseMessage",
-                    error.message,
-                    "error"
-                );
-
-            }
-
-        }
-    );
-
-}
-
-
 async function loadPurchases() {
-
-    const list =
-        document.getElementById(
-            "purchaseList"
-        );
-
-
-    if (!list) {
+    if (!requireBusiness()) {
         return;
     }
 
-
     try {
-
         const data =
             await apiRequest(
-                `/api/purchases?date=${currentDate}`
+                `/api/purchases?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
             );
 
-
-        const purchases =
+        purchases =
             data.purchases || [];
 
-
-        const total =
-            purchases.reduce(
-                (
-                    sum,
-                    item
-                ) =>
-                    sum +
-                    Number(
-                        item.amount || 0
-                    ),
-                0
-            );
-
-
-        document.getElementById(
-            "purchaseTotal"
-        ).textContent =
-            total.toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
-
-
-        if (!purchases.length) {
-
-            list.innerHTML = `
-
-                <div class="empty-state">
-                    No purchases recorded yet.
-                </div>
-
-            `;
-
-            return;
-
-        }
-
-
-        list.innerHTML =
-            purchases.map(
-                purchase => `
-
-                    <div class="transaction-row">
-
-                        <div class="transaction-main">
-
-                            <strong>
-                                ${escapeHtml(
-                                    purchase.product_name ||
-                                    purchase.name ||
-                                    "Product"
-                                )}
-                            </strong>
-
-                            <span>
-                                Quantity:
-                                ${qty(
-                                    purchase.quantity
-                                )}
-                            </span>
-
-                        </div>
-
-
-                        <div>
-
-                            <strong>
-                                ${money(
-                                    purchase.amount
-                                )}
-                            </strong>
-
-                        </div>
-
-
-                        <button
-                            class="btn-danger btn-small"
-                            onclick="deletePurchase(${purchase.id})"
-                        >
-                            Delete
-                        </button>
-
-                    </div>
-
-                `
-            ).join("");
-
-
+        renderPurchases();
     } catch (error) {
-
         console.error(
             "Purchases error:",
             error
         );
-
-
-        list.innerHTML = `
-
-            <div class="empty-state">
-                Failed to load purchases.
-            </div>
-
-        `;
-
     }
-
 }
 
-
-async function deletePurchase(
-    id
-) {
-
-    const confirmed =
-        confirm(
-            "Delete this purchase?"
+function renderPurchases() {
+    const tbody =
+        document.getElementById(
+            "purchasesTableBody"
         );
 
-
-    if (!confirmed) {
+    if (!tbody) {
         return;
     }
 
+    tbody.innerHTML =
+        "";
+
+    if (!purchases.length) {
+        tbody.innerHTML =
+            `
+            <tr>
+                <td colspan="7">
+                    No purchases recorded.
+                </td>
+            </tr>
+            `;
+
+        return;
+    }
+
+    purchases.forEach(
+        purchase => {
+            const tr =
+                document.createElement(
+                    "tr"
+                );
+
+            tr.innerHTML =
+                `
+                <td>
+                    ${formatDate(
+                        purchase.date
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        purchase.name ||
+                        ""
+                    )}
+                </td>
+
+                <td>
+                    ${number(
+                        purchase.quantity
+                    )}
+                </td>
+
+                <td>
+                    KES ${money(
+                        purchase.amount
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        purchase.supplier ||
+                        ""
+                    )}
+                </td>
+
+                <td>
+                    <button
+                        class="btn-danger btn-small"
+                        onclick="deletePurchase(${purchase.id})"
+                    >
+                        Delete
+                    </button>
+                </td>
+                `;
+
+            tbody.appendChild(
+                tr
+            );
+        }
+    );
+}
+
+async function addPurchase(
+    event
+) {
+    event.preventDefault();
+
+    if (!requireBusiness()) {
+        return;
+    }
+
+    const productId =
+        Number(
+            getValue(
+                "purchaseProduct"
+            )
+        );
+
+    const quantity =
+        Number(
+            getValue(
+                "purchaseQuantity"
+            ) || 0
+        );
+
+    const amount =
+        Number(
+            getValue(
+                "purchaseAmount"
+            ) || 0
+        );
+
+    const supplier =
+        getValue(
+            "purchaseSupplier"
+        ).trim();
+
+    if (!productId) {
+        alert(
+            "Select a product."
+        );
+
+        return;
+    }
 
     try {
-
         await apiRequest(
-            `/api/purchases/${id}`,
+            "/api/purchases",
+            {
+                method: "POST",
+                body:
+                    JSON.stringify({
+                        business_id:
+                            Number(
+                                activeBusinessId
+                            ),
+                        date:
+                            currentDate,
+                        product_id:
+                            productId,
+                        quantity,
+                        amount,
+                        supplier
+                    })
+            }
+        );
+
+        document
+            .getElementById(
+                "purchaseForm"
+            )
+            ?.reset();
+
+        await loadPurchases();
+        await loadDailyStock();
+        await loadDashboard();
+
+        alert(
+            "Purchase saved."
+        );
+    } catch (error) {
+        console.error(
+            "Add purchase:",
+            error
+        );
+
+        alert(
+            error.message
+        );
+    }
+}
+
+async function deletePurchase(
+    purchaseId
+) {
+    if (!requireBusiness()) {
+        return;
+    }
+
+    if (
+        !confirm(
+            "Delete this purchase?"
+        )
+    ) {
+        return;
+    }
+
+    try {
+        await apiRequest(
+            `/api/purchases/${purchaseId}?${getBusinessQuery()}`,
             {
                 method: "DELETE"
             }
         );
 
-
         await loadPurchases();
 
-        await loadReport();
-
-        await loadReconciliationSummary();
-
-        updateDashboard();
-
-
+        alert(
+            "Purchase deleted."
+        );
     } catch (error) {
+        console.error(
+            "Delete purchase:",
+            error
+        );
 
         alert(
             error.message
         );
-
     }
-
 }
-
 
 /* =====================================================
    EXPENSES
 ===================================================== */
 
-
-const saveExpense =
-    document.getElementById(
-        "saveExpense"
-    );
-
-
-if (saveExpense) {
-
-    saveExpense.addEventListener(
-        "click",
-        async () => {
-
-            const description =
-                document.getElementById(
-                    "expenseDescription"
-                ).value.trim();
-
-
-            const amount =
-                Number(
-                    document.getElementById(
-                        "expenseAmount"
-                    ).value
-                );
-
-
-            if (
-                !description ||
-                amount < 0
-            ) {
-
-                showMessage(
-                    "expenseMessage",
-                    "Enter a valid expense.",
-                    "error"
-                );
-
-                return;
-
-            }
-
-
-            try {
-
-                await apiRequest(
-                    "/api/expenses",
-                    {
-                        method: "POST",
-
-                        body:
-                            JSON.stringify({
-                                date:
-                                    currentDate,
-                                description:
-                                    description,
-                                amount:
-                                    amount
-                            })
-                    }
-                );
-
-
-                document.getElementById(
-                    "expenseDescription"
-                ).value = "";
-
-
-                document.getElementById(
-                    "expenseAmount"
-                ).value = "";
-
-
-                showMessage(
-                    "expenseMessage",
-                    "Expense recorded successfully.",
-                    "success"
-                );
-
-
-                await loadExpenses();
-
-                await loadReport();
-
-                await loadReconciliationSummary();
-
-                updateDashboard();
-
-
-            } catch (error) {
-
-                showMessage(
-                    "expenseMessage",
-                    error.message,
-                    "error"
-                );
-
-            }
-
-        }
-    );
-
-}
-
-
 async function loadExpenses() {
-
-    const list =
-        document.getElementById(
-            "expenseList"
-        );
-
-
-    if (!list) {
+    if (!requireBusiness()) {
         return;
     }
 
-
     try {
-
         const data =
             await apiRequest(
-                `/api/expenses?date=${currentDate}`
+                `/api/expenses?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
             );
 
-
-        const expenses =
+        expenses =
             data.expenses || [];
 
-
-        const total =
-            expenses.reduce(
-                (
-                    sum,
-                    item
-                ) =>
-                    sum +
-                    Number(
-                        item.amount || 0
-                    ),
-                0
-            );
-
-
-        document.getElementById(
-            "expenseTotal"
-        ).textContent =
-            total.toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
-
-
-        if (!expenses.length) {
-
-            list.innerHTML = `
-
-                <div class="empty-state">
-                    No expenses recorded yet.
-                </div>
-
-            `;
-
-            return;
-
-        }
-
-
-        list.innerHTML =
-            expenses.map(
-                expense => `
-
-                    <div class="transaction-row">
-
-                        <div class="transaction-main">
-
-                            <strong>
-                                ${escapeHtml(
-                                    expense.description
-                                )}
-                            </strong>
-
-                            <span>
-                                ${expense.date}
-                            </span>
-
-                        </div>
-
-
-                        <div>
-
-                            <strong>
-                                ${money(
-                                    expense.amount
-                                )}
-                            </strong>
-
-                        </div>
-
-
-                        <button
-                            class="btn-danger btn-small"
-                            onclick="deleteExpense(${expense.id})"
-                        >
-                            Delete
-                        </button>
-
-                    </div>
-
-                `
-            ).join("");
-
-
+        renderExpenses();
     } catch (error) {
-
         console.error(
             "Expenses error:",
             error
         );
-
-
-        list.innerHTML = `
-
-            <div class="empty-state">
-                Failed to load expenses.
-            </div>
-
-        `;
-
     }
-
 }
 
-
-async function deleteExpense(
-    id
-) {
-
-    const confirmed =
-        confirm(
-            "Delete this expense?"
+function renderExpenses() {
+    const tbody =
+        document.getElementById(
+            "expensesTableBody"
         );
 
-
-    if (!confirmed) {
+    if (!tbody) {
         return;
     }
 
+    tbody.innerHTML =
+        "";
+
+    if (!expenses.length) {
+        tbody.innerHTML =
+            `
+            <tr>
+                <td colspan="4">
+                    No expenses recorded.
+                </td>
+            </tr>
+            `;
+
+        return;
+    }
+
+    expenses.forEach(
+        expense => {
+            const tr =
+                document.createElement(
+                    "tr"
+                );
+
+            tr.innerHTML =
+                `
+                <td>
+                    ${formatDate(
+                        expense.date
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHtml(
+                        expense.description
+                    )}
+                </td>
+
+                <td>
+                    KES ${money(
+                        expense.amount
+                    )}
+                </td>
+
+                <td>
+                    <button
+                        class="btn-danger btn-small"
+                        onclick="deleteExpense(${expense.id})"
+                    >
+                        Delete
+                    </button>
+                </td>
+                `;
+
+            tbody.appendChild(
+                tr
+            );
+        }
+    );
+}
+
+async function addExpense(
+    event
+) {
+    event.preventDefault();
+
+    if (!requireBusiness()) {
+        return;
+    }
+
+    const description =
+        getValue(
+            "expenseDescription"
+        ).trim();
+
+    const amount =
+        Number(
+            getValue(
+                "expenseAmount"
+            ) || 0
+        );
+
+    if (!description) {
+        alert(
+            "Enter an expense description."
+        );
+
+        return;
+    }
 
     try {
-
         await apiRequest(
-            `/api/expenses/${id}`,
+            "/api/expenses",
+            {
+                method: "POST",
+                body:
+                    JSON.stringify({
+                        business_id:
+                            Number(
+                                activeBusinessId
+                            ),
+                        date:
+                            currentDate,
+                        description,
+                        amount
+                    })
+            }
+        );
+
+        document
+            .getElementById(
+                "expenseForm"
+            )
+            ?.reset();
+
+        await loadExpenses();
+        await loadDashboard();
+        await loadReconciliation();
+
+        alert(
+            "Expense saved."
+        );
+    } catch (error) {
+        console.error(
+            "Add expense:",
+            error
+        );
+
+        alert(
+            error.message
+        );
+    }
+}
+
+async function deleteExpense(
+    expenseId
+) {
+    if (!requireBusiness()) {
+        return;
+    }
+
+    if (
+        !confirm(
+            "Delete this expense?"
+        )
+    ) {
+        return;
+    }
+
+    try {
+        await apiRequest(
+            `/api/expenses/${expenseId}?${getBusinessQuery()}`,
             {
                 method: "DELETE"
             }
         );
 
-
         await loadExpenses();
+        await loadDashboard();
+        await loadReconciliation();
 
-        await loadReport();
-
-        await loadReconciliationSummary();
-
-        updateDashboard();
-
-
+        alert(
+            "Expense deleted."
+        );
     } catch (error) {
+        console.error(
+            "Delete expense:",
+            error
+        );
 
         alert(
             error.message
         );
-
     }
-
 }
-
 
 /* =====================================================
    RECONCILIATION
 ===================================================== */
 
-
-async function loadReconciliationSummary() {
+async function loadReconciliation() {
+    if (!requireBusiness()) {
+        return;
+    }
 
     try {
-
-        const [
-            salesData,
-            expensesData,
-            purchasesData
-        ] =
-            await Promise.all([
-
-                apiRequest(
-                    `/api/sales?date=${currentDate}`
-                ),
-
-                apiRequest(
-                    `/api/expenses?date=${currentDate}`
-                ),
-
-                apiRequest(
-                    `/api/purchases?date=${currentDate}`
-                )
-
-            ]);
-
-
-        const sales =
-            Number(
-                salesData.total ||
-                salesData.totalSales ||
-                0
+        const data =
+            await apiRequest(
+                `/api/reconciliation?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
             );
 
+        setValue(
+            "cashAtHand",
+            data.cash_at_hand
+        );
 
-        const expenses =
-            (
-                expensesData.expenses ||
-                []
-            ).reduce(
-                (
-                    total,
-                    item
-                ) =>
-                    total +
-                    Number(
-                        item.amount || 0
-                    ),
-                0
-            );
+        setValue(
+            "tillAmount",
+            data.till_amount
+        );
 
+        setText(
+            "reconciliationSales",
+            `KES ${money(
+                data.total_sales
+            )}`
+        );
 
-        const purchases =
-            (
-                purchasesData.purchases ||
-                []
-            ).reduce(
-                (
-                    total,
-                    item
-                ) =>
-                    total +
-                    Number(
-                        item.amount || 0
-                    ),
-                0
-            );
+        setText(
+            "reconciliationExpenses",
+            `KES ${money(
+                data.total_expenses
+            )}`
+        );
 
+        setText(
+            "reconciliationPurchases",
+            `KES ${money(
+                data.total_purchases
+            )}`
+        );
 
-        document.getElementById(
-            "reconcileSales"
-        ).textContent =
-            sales.toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
+        setText(
+            "expectedMoney",
+            `KES ${money(
+                data.expected_money
+            )}`
+        );
 
+        setText(
+            "actualMoney",
+            `KES ${money(
+                data.actual_money
+            )}`
+        );
 
-        document.getElementById(
-            "reconcileExpenses"
-        ).textContent =
-            expenses.toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
+        setText(
+            "difference",
+            `KES ${money(
+                data.difference
+            )}`
+        );
 
-
-        document.getElementById(
-            "reconcilePurchases"
-        ).textContent =
-            purchases.toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
-
-
+        setText(
+            "reconciliationStatus",
+            data.status
+        );
     } catch (error) {
-
         console.error(
-            "Reconciliation summary error:",
+            "Reconciliation error:",
+            error
+        );
+    }
+}
+
+async function saveReconciliation(
+    event
+) {
+    event.preventDefault();
+
+    if (!requireBusiness()) {
+        return;
+    }
+
+    const cash =
+        Number(
+            getValue(
+                "cashAtHand"
+            ) || 0
+        );
+
+    const till =
+        Number(
+            getValue(
+                "tillAmount"
+            ) || 0
+        );
+
+    try {
+        const data =
+            await apiRequest(
+                "/api/reconciliation",
+                {
+                    method: "POST",
+                    body:
+                        JSON.stringify({
+                            business_id:
+                                Number(
+                                    activeBusinessId
+                                ),
+                            date:
+                                currentDate,
+                            cash_at_hand:
+                                cash,
+                            till_amount:
+                                till
+                        })
+                }
+            );
+
+        await loadReconciliation();
+        await loadDashboard();
+
+        alert(
+            `Reconciliation saved: ${data.status}`
+        );
+    } catch (error) {
+        console.error(
+            "Save reconciliation:",
             error
         );
 
+        alert(
+            error.message
+        );
     }
-
 }
-
-
-/* =====================================================
-   CALCULATE RECONCILIATION
-===================================================== */
-
-
-const calculateReconciliation =
-    document.getElementById(
-        "calculateReconciliation"
-    );
-
-
-if (calculateReconciliation) {
-
-    calculateReconciliation.addEventListener(
-        "click",
-        async () => {
-
-            const cash =
-                Number(
-                    document.getElementById(
-                        "cashAtHand"
-                    ).value
-                ) || 0;
-
-
-            const till =
-                Number(
-                    document.getElementById(
-                        "tillAmount"
-                    ).value
-                ) || 0;
-
-
-            try {
-
-                const result =
-                    await apiRequest(
-                        "/api/reconciliation",
-                        {
-                            method: "POST",
-
-                            body:
-                                JSON.stringify({
-                                    date:
-                                        currentDate,
-
-                                    cash_at_hand:
-                                        cash,
-
-                                    till_amount:
-                                        till
-                                })
-                        }
-                    );
-
-
-                document.getElementById(
-                    "expectedMoney"
-                ).textContent =
-                    Number(
-                        result.expectedMoney
-                    ).toLocaleString(
-                        "en-KE",
-                        {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }
-                    );
-
-
-                document.getElementById(
-                    "actualMoney"
-                ).textContent =
-                    Number(
-                        result.actualMoney
-                    ).toLocaleString(
-                        "en-KE",
-                        {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }
-                    );
-
-
-                document.getElementById(
-                    "moneyDifference"
-                ).textContent =
-                    Number(
-                        result.difference
-                    ).toLocaleString(
-                        "en-KE",
-                        {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }
-                    );
-
-
-                const status =
-                    document.getElementById(
-                        "reconciliationStatus"
-                    );
-
-
-                status.textContent =
-                    result.status;
-
-
-                status.className =
-                    "status-badge";
-
-
-                if (
-                    result.status ===
-                    "BALANCED"
-                ) {
-
-                    status.classList.add(
-                        "balanced"
-                    );
-
-                } else if (
-                    result.status ===
-                    "SHORTAGE"
-                ) {
-
-                    status.classList.add(
-                        "shortage"
-                    );
-
-                } else {
-
-                    status.classList.add(
-                        "surplus"
-                    );
-
-                }
-
-
-            } catch (error) {
-
-                alert(
-                    error.message
-                );
-
-            }
-
-        }
-    );
-
-}
-
 
 /* =====================================================
    REPORTS
 ===================================================== */
 
-
-async function loadReport() {
-
-    const table =
-        document.getElementById(
-            "reportTable"
-        );
-
-
-    if (!table) {
+async function loadDailyReport() {
+    if (!requireBusiness()) {
         return;
     }
 
-
     try {
-
         const data =
             await apiRequest(
-                `/api/reports/daily?date=${currentDate}`
+                `/api/reports/daily?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
             );
 
-
-        const totals =
-            data.totals || {};
-
-
-        document.getElementById(
-            "reportUnits"
-        ).textContent =
-            qty(
-                totals.receiptUnits ||
-                totals.units ||
-                0
-            );
-
-
-        document.getElementById(
-            "reportSales"
-        ).textContent =
-            Number(
-                totals.receiptSales || 0
-            ).toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
-
-
-        document.getElementById(
-            "reportCost"
-        ).textContent =
-            Number(
-                totals.cost || 0
-            ).toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
-
-
-        document.getElementById(
-            "reportProfit"
-        ).textContent =
-            Number(
-                totals.profit || 0
-            ).toLocaleString(
-                "en-KE",
-                {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }
-            );
-
-
-        const rows =
-            data.products || [];
-
-
-        if (!rows.length) {
-
-            table.innerHTML = `
-
-                <tr>
-
-                    <td
-                        colspan="9"
-                        class="empty-message"
-                    >
-                        No report data for this date.
-                    </td>
-
-                </tr>
-
-            `;
-
-            return;
-
-        }
-
-
-        table.innerHTML =
-            rows.map(
-                product => `
-
-                    <tr>
-
-                        <td>
-                            <strong>
-                                ${escapeHtml(product.name)}
-                            </strong>
-                        </td>
-
-                        <td>
-                            ${qty(
-                                product.opening_quantity
-                            )}
-                        </td>
-
-                        <td>
-                            ${qty(
-                                product.additions
-                            )}
-                        </td>
-
-                        <td>
-                            ${qty(
-                                product.closing_quantity
-                            )}
-                        </td>
-
-                        <td>
-                            ${qty(
-                                product.units_sold
-                            )}
-                        </td>
-
-                        <td>
-                            ${qty(
-                                product.recorded_units_sold
-                            )}
-                        </td>
-
-                        <td>
-                            ${varianceBadge(
-                                product.stock_variance
-                            )}
-                        </td>
-
-                        <td>
-                            ${money(
-                                product.receipt_sales
-                            )}
-                        </td>
-
-                        <td>
-                            ${money(
-                                product.gross_profit
-                            )}
-                        </td>
-
-                    </tr>
-
-                `
-            ).join("");
-
-
+        renderDailyReport(
+            data
+        );
     } catch (error) {
-
         console.error(
-            "Report error:",
+            "Daily report error:",
             error
         );
+    }
+}
 
+function renderDailyReport(
+    data
+) {
+    const tbody =
+        document.getElementById(
+            "reportTableBody"
+        );
 
-        table.innerHTML = `
+    if (tbody) {
+        tbody.innerHTML =
+            "";
 
-            <tr>
+        (
+            data.products ||
+            []
+        ).forEach(
+            product => {
+                const tr =
+                    document.createElement(
+                        "tr"
+                    );
 
-                <td
-                    colspan="9"
-                    class="empty-message"
-                >
-                    Failed to load report.
-                </td>
+                tr.innerHTML =
+                    `
+                    <td>
+                        ${escapeHtml(
+                            product.name
+                        )}
+                    </td>
 
-            </tr>
+                    <td>
+                        ${number(
+                            product.opening_quantity
+                        )}
+                    </td>
 
-        `;
+                    <td>
+                        ${number(
+                            product.additions
+                        )}
+                    </td>
 
+                    <td>
+                        ${number(
+                            product.closing_quantity
+                        )}
+                    </td>
+
+                    <td>
+                        ${number(
+                            product.units_sold
+                        )}
+                    </td>
+
+                    <td>
+                        ${number(
+                            product.recorded_units_sold
+                        )}
+                    </td>
+
+                    <td>
+                        ${number(
+                            product.stock_variance
+                        )}
+                    </td>
+
+                    <td>
+                        KES ${money(
+                            product.receipt_sales
+                        )}
+                    </td>
+
+                    <td>
+                        KES ${money(
+                            product.gross_profit
+                        )}
+                    </td>
+                    `;
+
+                tbody.appendChild(
+                    tr
+                );
+            }
+        );
     }
 
-}
-
-
-const loadReportButton =
-    document.getElementById(
-        "loadReport"
+    setText(
+        "reportStockSales",
+        `KES ${money(
+            data.totals?.stockSales
+        )}`
     );
 
-
-if (loadReportButton) {
-
-    loadReportButton.addEventListener(
-        "click",
-        loadReport
+    setText(
+        "reportReceiptSales",
+        `KES ${money(
+            data.totals?.receiptSales
+        )}`
     );
 
-}
+    setText(
+        "reportStockUnits",
+        number(
+            data.totals?.stockUnits
+        )
+    );
 
+    setText(
+        "reportReceiptUnits",
+        number(
+            data.totals?.receiptUnits
+        )
+    );
+
+    setText(
+        "reportCost",
+        `KES ${money(
+            data.totals?.cost
+        )}`
+    );
+
+    setText(
+        "reportProfit",
+        `KES ${money(
+            data.totals?.profit
+        )}`
+    );
+
+    setText(
+        "reportVariance",
+        number(
+            data.totals?.stockVariance
+        )
+    );
+}
 
 /* =====================================================
    DASHBOARD
 ===================================================== */
 
-
-async function updateDashboard() {
+async function loadDashboard() {
+    if (!requireBusiness()) {
+        return;
+    }
 
     try {
-
         const data =
             await apiRequest(
-                `/api/reports/daily?date=${currentDate}`
+                `/api/dashboard?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
             );
 
+        setText(
+            "dashboardProducts",
+            number(
+                data.products
+            )
+        );
 
-        const totals =
-            data.totals || {};
+        setText(
+            "dashboardSales",
+            `KES ${money(
+                data.sales
+            )}`
+        );
 
+        setText(
+            "dashboardExpenses",
+            `KES ${money(
+                data.expenses
+            )}`
+        );
 
-        const dashboardSales =
-            document.getElementById(
-                "dashboardSales"
-            );
-
-
-        if (dashboardSales) {
-
-            dashboardSales.textContent =
-                Number(
-                    totals.receiptSales || 0
-                ).toLocaleString(
-                    "en-KE",
-                    {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }
-                );
-
-        }
-
-
-        const dashboardExpenses =
-            document.getElementById(
-                "dashboardExpenses"
-            );
-
-
-        if (dashboardExpenses) {
-
-            dashboardExpenses.textContent =
-                Number(
-                    totals.expenses || 0
-                ).toLocaleString(
-                    "en-KE",
-                    {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }
-                );
-
-        }
-
-
-        const dashboardDifference =
-            document.getElementById(
-                "dashboardDifference"
-            );
-
-
-        if (dashboardDifference) {
-
-            dashboardDifference.textContent =
-                qty(
-                    totals.stockVariance || 0
-                );
-
-        }
-
-
-        const dashboardProducts =
-            document.getElementById(
-                "dashboardProducts"
-            );
-
-
-        if (dashboardProducts) {
-
-            dashboardProducts.textContent =
-                products.length;
-
-        }
-
-
+        setText(
+            "dashboardDifference",
+            number(
+                data.difference
+            )
+        );
     } catch (error) {
-
         console.error(
             "Dashboard error:",
             error
         );
-
     }
-
 }
-
 
 /* =====================================================
-   UTILITIES
+   PRODUCT SELECT SETUP
 ===================================================== */
 
+function populateAllProductSelects() {
+    const selectors = [
+        "purchaseProduct"
+    ];
 
-function showMessage(
-    elementId,
-    message,
-    type
-) {
+    selectors.forEach(
+        id => {
+            const select =
+                document.getElementById(
+                    id
+                );
 
-    const element =
-        document.getElementById(
-            elementId
-        );
+            if (!select) {
+                return;
+            }
 
+            const oldValue =
+                select.value;
 
-    if (!element) {
-        return;
-    }
+            select.innerHTML =
+                `
+                <option value="">
+                    Select product
+                </option>
+                `;
 
+            products.forEach(
+                product => {
+                    const option =
+                        document.createElement(
+                            "option"
+                        );
 
-    element.textContent =
-        message;
+                    option.value =
+                        product.id;
 
+                    option.textContent =
+                        product.name;
 
-    element.className =
-        `form-message ${type}`;
+                    select.appendChild(
+                        option
+                    );
+                }
+            );
 
-
-    setTimeout(
-        () => {
-
-            element.textContent =
-                "";
-
-            element.className =
-                "form-message";
-
-        },
-        4000
+            select.value =
+                oldValue;
+        }
     );
-
 }
 
-
-function varianceBadge(
-    value
-) {
-
-    const number =
-        Number(value || 0);
-
-
-    if (number === 0) {
-
-        return `
-            <span class="status-badge balanced">
-                0
-            </span>
-        `;
-
-    }
-
-
-    if (number < 0) {
-
-        return `
-            <span class="status-badge shortage">
-                ${qty(number)}
-            </span>
-        `;
-
-    }
-
-
-    return `
-        <span class="status-badge surplus">
-            +${qty(number)}
-        </span>
-    `;
-
-}
-
+/* =====================================================
+   ESCAPE HTML
+===================================================== */
 
 function escapeHtml(
     value
 ) {
-
     return String(
         value ?? ""
     )
@@ -3459,147 +2886,28 @@ function escapeHtml(
             /'/g,
             "&#039;"
         );
-
 }
-
-
-/* =====================================================
-   DATE INPUT LISTENERS
-===================================================== */
-
-
-const stockDate =
-    document.getElementById(
-        "stockDate"
-    );
-
-
-if (stockDate) {
-
-    stockDate.addEventListener(
-        "change",
-        event => {
-
-            currentDate =
-                event.target.value;
-
-            syncDates(
-                currentDate
-            );
-
-            loadOpeningStock();
-
-            loadDailyStock();
-
-        }
-    );
-
-}
-
-
-const dailyStockDate =
-    document.getElementById(
-        "dailyStockDate"
-    );
-
-
-if (dailyStockDate) {
-
-    dailyStockDate.addEventListener(
-        "change",
-        event => {
-
-            currentDate =
-                event.target.value;
-
-            syncDates(
-                currentDate
-            );
-
-            loadDailyStock();
-
-            loadSales();
-
-            loadReport();
-
-            updateDashboard();
-
-        }
-    );
-
-}
-
-
-const reconciliationDate =
-    document.getElementById(
-        "reconciliationDate"
-    );
-
-
-if (reconciliationDate) {
-
-    reconciliationDate.addEventListener(
-        "change",
-        event => {
-
-            currentDate =
-                event.target.value;
-
-            syncDates(
-                currentDate
-            );
-
-            loadReconciliationSummary();
-
-        }
-    );
-
-}
-
-
-const reportDate =
-    document.getElementById(
-        "reportDate"
-    );
-
-
-if (reportDate) {
-
-    reportDate.addEventListener(
-        "change",
-        event => {
-
-            currentDate =
-                event.target.value;
-
-            syncDates(
-                currentDate
-            );
-
-            loadReport();
-
-        }
-    );
-
-}
-
 
 /* =====================================================
    LOAD EVERYTHING
 ===================================================== */
 
-
 async function loadAll() {
+    if (!activeBusinessId) {
+        console.log(
+            "No business selected."
+        );
 
-    displayTodayDate();
+        return;
+    }
 
+    updateDateDisplay();
 
-    syncDates(
-        currentDate
-    );
-
+    updateBusinessDisplay();
 
     await loadProducts();
+
+    populateAllProductSelects();
 
     await loadOpeningStock();
 
@@ -3611,41 +2919,232 @@ async function loadAll() {
 
     await loadExpenses();
 
-    await loadReconciliationSummary();
+    await loadReconciliation();
 
-    await loadReport();
+    await loadDailyReport();
 
-    await updateDashboard();
-
-
-    populateProductSelects();
-
-    updateSaleTotal();
-
+    await loadDashboard();
 }
 
-
 /* =====================================================
-   START APPLICATION
+   EVENT LISTENERS
 ===================================================== */
 
+function setupEventListeners() {
+    const businessSelect =
+        document.getElementById(
+            "businessSelect"
+        );
+
+    if (businessSelect) {
+        businessSelect.addEventListener(
+            "change",
+            changeBusiness
+        );
+    }
+
+    const addBusinessButton =
+        document.getElementById(
+            "addBusinessButton"
+        );
+
+    if (
+        addBusinessButton
+    ) {
+        addBusinessButton.addEventListener(
+            "click",
+            openBusinessModal
+        );
+    }
+
+    const closeBusiness =
+        document.getElementById(
+            "closeBusinessModal"
+        );
+
+    if (closeBusiness) {
+        closeBusiness.addEventListener(
+            "click",
+            closeBusinessModal
+        );
+    }
+
+    const cancelBusiness =
+        document.getElementById(
+            "cancelBusinessButton"
+        );
+
+    if (cancelBusiness) {
+        cancelBusiness.addEventListener(
+            "click",
+            closeBusinessModal
+        );
+    }
+
+    const overlay =
+        document.getElementById(
+            "businessModalOverlay"
+        );
+
+    if (overlay) {
+        overlay.addEventListener(
+            "click",
+            closeBusinessModal
+        );
+    }
+
+    const businessForm =
+        document.getElementById(
+            "businessForm"
+        );
+
+    if (businessForm) {
+        businessForm.addEventListener(
+            "submit",
+            createBusiness
+        );
+    }
+
+    const globalDate =
+        document.getElementById(
+            "globalDate"
+        );
+
+    if (globalDate) {
+        globalDate.addEventListener(
+            "change",
+            changeGlobalDate
+        );
+    }
+
+    const productForm =
+        document.getElementById(
+            "productForm"
+        );
+
+    if (productForm) {
+        productForm.addEventListener(
+            "submit",
+            addProduct
+        );
+    }
+
+    const salesForm =
+        document.getElementById(
+            "salesForm"
+        );
+
+    if (salesForm) {
+        salesForm.addEventListener(
+            "submit",
+            completeSale
+        );
+    }
+
+    const addSaleButton =
+        document.getElementById(
+            "addSaleLine"
+        );
+
+    if (addSaleButton) {
+        addSaleButton.addEventListener(
+            "click",
+            addSaleLine
+        );
+    }
+
+    const purchaseForm =
+        document.getElementById(
+            "purchaseForm"
+        );
+
+    if (purchaseForm) {
+        purchaseForm.addEventListener(
+            "submit",
+            addPurchase
+        );
+    }
+
+    const expenseForm =
+        document.getElementById(
+            "expenseForm"
+        );
+
+    if (expenseForm) {
+        expenseForm.addEventListener(
+            "submit",
+            addExpense
+        );
+    }
+
+    const reconciliationForm =
+        document.getElementById(
+            "reconciliationForm"
+        );
+
+    if (
+        reconciliationForm
+    ) {
+        reconciliationForm.addEventListener(
+            "submit",
+            saveReconciliation
+        );
+    }
+
+    [
+        "cashAtHand",
+        "tillAmount"
+    ].forEach(
+        id => {
+            const input =
+                document.getElementById(
+                    id
+                );
+
+            if (input) {
+                input.addEventListener(
+                    "input",
+                    loadReconciliation
+                );
+            }
+        }
+    );
+}
+
+/* =====================================================
+   START
+===================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
-    () => {
+    async () => {
+        setupNavigation();
 
-        currentDate =
-            new Date()
-                .toISOString()
-                .split("T")[0];
+        setupEventListeners();
 
+        updateDateDisplay();
 
-        syncDates(
-            currentDate
+        await loadBusinesses();
+
+        if (
+            activeBusinessId
+        ) {
+            await loadAll();
+        }
+
+        if (
+            document.getElementById(
+                "saleLines"
+            ) &&
+            !document.querySelector(
+                ".sale-line"
+            )
+        ) {
+            addSaleLine();
+        }
+
+        console.log(
+            "Stock System JavaScript is connected!"
         );
-
-
-        loadAll();
-
     }
 );
