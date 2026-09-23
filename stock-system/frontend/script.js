@@ -25,47 +25,63 @@ let saleLines = [];
    API
 ===================================================== */
 
-const apiRequest = async (
-    endpoint,
-    options = {}
-) => {
-    const requestOptions = {
-        ...options
-    };
-
-    if (requestOptions.body) {
-        requestOptions.headers = {
-            "Content-Type":
-                "application/json",
-            ...(requestOptions.headers || {})
+const apiRequest = async (endpoint, options = {}) => {
+    try {
+        const requestOptions = {
+            ...options,
+            headers: {
+                ...(options.headers || {})
+            }
         };
-    }
 
-    const response =
-        await fetch(
+        if (requestOptions.body) {
+            requestOptions.headers["Content-Type"] =
+                "application/json";
+        }
+
+        console.log("API REQUEST:", {
+            url: `${API_URL}${endpoint}`,
+            method: requestOptions.method || "GET",
+            body: requestOptions.body || null
+        });
+
+        const response = await fetch(
             `${API_URL}${endpoint}`,
             requestOptions
         );
 
-    let data;
+        const text = await response.text();
 
-    try {
-        data =
-            await response.json();
-    } catch {
+        let data;
+
+        try {
+            data = text ? JSON.parse(text) : {};
+        } catch {
+            data = {
+                success: false,
+                message: text || `Server returned ${response.status}`
+            };
+        }
+
+        console.log("API RESPONSE:", response.status, data);
+
+        if (!response.ok) {
+            throw new Error(
+                data.message ||
+                `Request failed with status ${response.status}`
+            );
+        }
+
+        return data;
+
+    } catch (error) {
+        console.error("API ERROR:", error);
+
         throw new Error(
-            `Server returned ${response.status}`
+            error.message ||
+            "Failed to connect to the backend."
         );
     }
-
-    if (!response.ok) {
-        throw new Error(
-            data.message ||
-            `Request failed: ${response.status}`
-        );
-    }
-
-    return data;
 };
 
 /* =====================================================
