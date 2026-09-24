@@ -941,110 +941,142 @@ function populateProductSelects() {
    OPENING STOCK
 ===================================================== */
 
+/* =====================================================
+   OPENING STOCK
+===================================================== */
+
 async function loadOpeningStock() {
+
     if (!requireBusiness()) {
         return;
     }
 
     try {
-        const data =
-            await apiRequest(
-                `/api/opening-stock?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
-            );
 
-        renderOpeningStock(
-            data.stock || []
+        const data = await apiRequest(
+            `/api/opening-stock?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
         );
+
+        const stock = data.stock || [];
+
+        renderOpeningStock(stock);
+
     } catch (error) {
+
         console.error(
             "Opening stock error:",
             error
         );
+
+        const tbody =
+            document.getElementById(
+                "openingStockTableBody"
+            );
+
+        if (tbody) {
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="empty-message">
+                        Failed to load opening stock:
+                        ${escapeHtml(error.message)}
+                    </td>
+                </tr>
+            `;
+
+        }
+
     }
+
 }
 
-function renderOpeningStock(
-    stock
-) {
+
+function renderOpeningStock(stock) {
+
     const tbody =
         document.getElementById(
             "openingStockTableBody"
         );
 
     if (!tbody) {
+        console.error(
+            "openingStockTableBody not found."
+        );
         return;
     }
 
-    tbody.innerHTML =
-        "";
+    tbody.innerHTML = "";
 
-    products.forEach(
-        product => {
-            const existing =
-                stock.find(
-                    item =>
-                        Number(
-                            item.product_id
-                        ) ===
-                        Number(
-                            product.id
-                        )
-                );
+    if (!products.length) {
 
-            const tr =
-                document.createElement(
-                    "tr"
-                );
-
-            tr.innerHTML =
-                `
-                <td>
-                    ${escapeHtml(
-                        product.name
-                    )}
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="4" class="empty-message">
+                    No products found for this business.
                 </td>
+            </tr>
+        `;
 
-                <td>
-                    <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        class="opening-quantity"
-                        data-product-id="${product.id}"
-                        value="${
-                            existing
-                                ? existing.opening_quantity
-                                : 0
-                        }"
-                    >
-                </td>
+        return;
+    }
 
-                <td>
-                    KES ${money(
-                        product.selling_price
-                    )}
-                </td>
+    products.forEach(product => {
 
-                <td>
-                    <button
-                        class="primary-button btn-small"
-                        onclick="saveOpeningStock(${product.id})"
-                    >
-                        Save
-                    </button>
-                </td>
-                `;
-
-            tbody.appendChild(
-                tr
+        const existing =
+            stock.find(
+                item =>
+                    Number(item.product_id) ===
+                    Number(product.id)
             );
-        }
-    );
+
+        const openingQuantity =
+            existing
+                ? Number(existing.opening_quantity || 0)
+                : 0;
+
+        const tr =
+            document.createElement("tr");
+
+        tr.innerHTML = `
+            <td>
+                ${escapeHtml(product.name)}
+            </td>
+
+            <td>
+                <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="opening-quantity"
+                    data-product-id="${product.id}"
+                    value="${openingQuantity}"
+                >
+            </td>
+
+            <td>
+                KES ${money(product.selling_price)}
+            </td>
+
+            <td>
+                <button
+                    type="button"
+                    class="primary-button btn-small"
+                    onclick="saveOpeningStock(${product.id})"
+                >
+                    Save
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+
+    });
+
 }
 
-async function saveOpeningStock(
-    productId
-) {
+
+async function saveOpeningStock(productId) {
+
     if (!requireBusiness()) {
         return;
     }
@@ -1054,47 +1086,85 @@ async function saveOpeningStock(
             `.opening-quantity[data-product-id="${productId}"]`
         );
 
-    const quantity =
-        Number(
-            input?.value || 0
+    if (!input) {
+
+        alert(
+            "Opening stock input was not found."
         );
 
+        return;
+    }
+
+    const quantity =
+        Number(input.value || 0);
+
+    if (
+        !Number.isFinite(quantity) ||
+        quantity < 0
+    ) {
+
+        alert(
+            "Enter a valid opening quantity."
+        );
+
+        return;
+    }
+
     try {
-        await apiRequest(
-            "/api/opening-stock",
-            {
-                method: "POST",
-                body:
-                    JSON.stringify({
-                        business_id:
-                            Number(
-                                activeBusinessId
-                            ),
-                        date:
-                            currentDate,
-                        product_id:
-                            productId,
-                        quantity
-                    })
-            }
+
+        const data =
+            await apiRequest(
+                "/api/opening-stock",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify({
+                            business_id:
+                                Number(
+                                    activeBusinessId
+                                ),
+
+                            date:
+                                currentDate,
+
+                            product_id:
+                                Number(productId),
+
+                            quantity:
+                                quantity
+                        })
+                }
+            );
+
+        console.log(
+            "Opening stock saved:",
+            data
         );
 
         await loadOpeningStock();
+
         await loadDailyStock();
 
+        await loadDashboard();
+
         alert(
-            "Opening stock saved."
+            "Opening stock saved successfully."
         );
+
     } catch (error) {
+
         console.error(
-            "Save opening stock:",
+            "Save opening stock error:",
             error
         );
 
         alert(
             error.message
         );
+
     }
+
 }
 
 /* =====================================================
@@ -1102,235 +1172,580 @@ async function saveOpeningStock(
 ===================================================== */
 
 async function loadDailyStock() {
+
     if (!requireBusiness()) {
         return;
     }
 
     try {
-        const data =
-            await apiRequest(
-                `/api/daily-stock?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
-            );
 
-        dailyStock =
-            data.stock || [];
+        const data = await apiRequest(
+            `/api/daily-stock?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
+        );
 
-        renderDailyStock();
+        console.log("Daily stock loaded:", data);
+
+        dailyStock = data.stock || data.dailyStock || [];
+
+        renderDailyStock(dailyStock);
+
     } catch (error) {
+
         console.error(
-            "Failed to load daily stock:",
+            "Daily stock error:",
             error
         );
+
+        const tbody =
+            document.getElementById(
+                "dailyStockTableBody"
+            );
+
+        if (tbody) {
+
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-message">
+                        Failed to load daily stock:
+                        ${escapeHtml(error.message)}
+                    </td>
+                </tr>
+            `;
+
+        }
+
     }
+
 }
 
-function renderDailyStock() {
+
+function renderDailyStock(stock) {
+
     const tbody =
         document.getElementById(
             "dailyStockTableBody"
         );
 
     if (!tbody) {
+
+        console.error(
+            "dailyStockTableBody not found."
+        );
+
         return;
     }
 
-    tbody.innerHTML =
-        "";
+    tbody.innerHTML = "";
 
-    products.forEach(
-        product => {
-            const row =
-                dailyStock.find(
-                    item =>
-                        Number(
-                            item.product_id
-                        ) ===
-                        Number(
-                            product.id
-                        )
+    if (!products.length) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty-message">
+                    No products found.
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    products.forEach(product => {
+
+        const existing =
+            stock.find(
+                item =>
+                    Number(item.product_id) ===
+                    Number(product.id)
+            );
+
+
+        let opening = 0;
+        let additions = 0;
+        let closing = 0;
+
+
+        if (existing) {
+
+            opening =
+                Number(
+                    existing.opening_quantity || 0
                 );
 
-            const tr =
-                document.createElement(
-                    "tr"
+            additions =
+                Number(
+                    existing.additions || 0
                 );
 
-            const opening =
-                row
-                    ? Number(
-                        row.opening_quantity
-                    )
-                    : 0;
+            closing =
+                Number(
+                    existing.closing_quantity || 0
+                );
 
-            const additions =
-                row
-                    ? Number(
-                        row.additions
-                    )
-                    : 0;
+        } else {
 
-            const closing =
-                row
-                    ? Number(
-                        row.closing_quantity
-                    )
-                    : 0;
+            /*
+             * If there is no daily stock record,
+             * try to get the opening stock saved
+             * for this date.
+             */
+
+            const openingRecord =
+                awaitFindOpeningStock(
+                    product.id
+                );
+
+            opening =
+                Number(
+                    openingRecord || 0
+                );
+
+        }
+
+
+        const unitsSold =
+            opening +
+            additions -
+            closing;
+
+
+        const sales =
+            unitsSold *
+            Number(
+                product.selling_price || 0
+            );
+
+
+        const tr =
+            document.createElement("tr");
+
+
+        tr.innerHTML = `
+
+            <td>
+                ${escapeHtml(product.name)}
+            </td>
+
+
+            <td>
+
+                <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="daily-opening"
+                    data-product-id="${product.id}"
+                    value="${opening}"
+                >
+
+            </td>
+
+
+            <td>
+
+                <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="daily-additions"
+                    data-product-id="${product.id}"
+                    value="${additions}"
+                >
+
+            </td>
+
+
+            <td>
+
+                <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="daily-closing"
+                    data-product-id="${product.id}"
+                    value="${closing}"
+                >
+
+            </td>
+
+
+            <td class="daily-units-sold">
+                ${number(unitsSold)}
+            </td>
+
+
+            <td>
+                KES ${money(product.selling_price)}
+            </td>
+
+
+            <td class="daily-sales">
+                KES ${money(sales)}
+            </td>
+
+
+            <td>
+
+                <button
+                    type="button"
+                    class="primary-button btn-small"
+                    onclick="saveDailyStock(${product.id})"
+                >
+                    Save
+                </button>
+
+            </td>
+
+        `;
+
+
+        tbody.appendChild(tr);
+
+
+        const openingInput =
+            tr.querySelector(
+                ".daily-opening"
+            );
+
+        const additionsInput =
+            tr.querySelector(
+                ".daily-additions"
+            );
+
+        const closingInput =
+            tr.querySelector(
+                ".daily-closing"
+            );
+
+
+        function updateRow() {
+
+            const openingValue =
+                Number(
+                    openingInput.value || 0
+                );
+
+            const additionsValue =
+                Number(
+                    additionsInput.value || 0
+                );
+
+            const closingValue =
+                Number(
+                    closingInput.value || 0
+                );
+
 
             const sold =
-                opening +
-                additions -
-                closing;
+                openingValue +
+                additionsValue -
+                closingValue;
 
-            const sales =
+
+            const salesAmount =
                 sold *
                 Number(
-                    product.selling_price
+                    product.selling_price || 0
                 );
 
-            tr.innerHTML =
-                `
-                <td>
-                    ${escapeHtml(
-                        product.name
-                    )}
-                </td>
 
-                <td>
-                    <input
-                        type="number"
-                        min="0"
-                        class="daily-opening"
-                        data-product-id="${product.id}"
-                        value="${opening}"
-                    >
-                </td>
+            const soldElement =
+                tr.querySelector(
+                    ".daily-units-sold"
+                );
 
-                <td>
-                    <input
-                        type="number"
-                        min="0"
-                        class="daily-additions"
-                        data-product-id="${product.id}"
-                        value="${additions}"
-                    >
-                </td>
+            const salesElement =
+                tr.querySelector(
+                    ".daily-sales"
+                );
 
-                <td>
-                    <input
-                        type="number"
-                        min="0"
-                        class="daily-closing"
-                        data-product-id="${product.id}"
-                        value="${closing}"
-                    >
-                </td>
 
-                <td>
-                    ${number(sold)}
-                </td>
+            if (soldElement) {
 
-                <td>
-                    KES ${money(sales)}
-                </td>
+                soldElement.textContent =
+                    number(sold);
 
-                <td>
-                    <button
-                        class="primary-button btn-small"
-                        onclick="saveDailyStock(${product.id})"
-                    >
-                        Save
-                    </button>
-                </td>
-                `;
+            }
 
-            tbody.appendChild(
-                tr
-            );
+
+            if (salesElement) {
+
+                salesElement.textContent =
+                    `KES ${money(salesAmount)}`;
+
+            }
+
         }
-    );
+
+
+        openingInput.addEventListener(
+            "input",
+            updateRow
+        );
+
+
+        additionsInput.addEventListener(
+            "input",
+            updateRow
+        );
+
+
+        closingInput.addEventListener(
+            "input",
+            updateRow
+        );
+
+    });
+
 }
 
-async function saveDailyStock(
-    productId
-) {
+
+/*
+ * Find opening stock for a product.
+ * This is used when today's daily-stock
+ * record does not yet exist.
+ */
+function awaitFindOpeningStock(productId) {
+
+    const record =
+        dailyStock.find(
+            item =>
+                Number(item.product_id) ===
+                Number(productId)
+        );
+
+    if (record) {
+
+        return Number(
+            record.opening_quantity || 0
+        );
+
+    }
+
+    return 0;
+
+}
+
+
+/*
+ * Save one product's daily stock.
+ */
+async function saveDailyStock(productId) {
+
     if (!requireBusiness()) {
         return;
     }
 
+
+    const openingInput =
+        document.querySelector(
+            `.daily-opening[data-product-id="${productId}"]`
+        );
+
+
+    const additionsInput =
+        document.querySelector(
+            `.daily-additions[data-product-id="${productId}"]`
+        );
+
+
+    const closingInput =
+        document.querySelector(
+            `.daily-closing[data-product-id="${productId}"]`
+        );
+
+
+    if (
+        !openingInput ||
+        !additionsInput ||
+        !closingInput
+    ) {
+
+        alert(
+            "Stock input fields could not be found."
+        );
+
+        return;
+
+    }
+
+
     const opening =
         Number(
-            document.querySelector(
-                `.daily-opening[data-product-id="${productId}"]`
-            )?.value || 0
+            openingInput.value || 0
         );
+
 
     const additions =
         Number(
-            document.querySelector(
-                `.daily-additions[data-product-id="${productId}"]`
-            )?.value || 0
+            additionsInput.value || 0
         );
+
 
     const closing =
         Number(
-            document.querySelector(
-                `.daily-closing[data-product-id="${productId}"]`
-            )?.value || 0
+            closingInput.value || 0
         );
 
-    const sold =
-        opening +
-        additions -
-        closing;
 
-    if (sold < 0) {
+    if (
+        !Number.isFinite(opening) ||
+        !Number.isFinite(additions) ||
+        !Number.isFinite(closing)
+    ) {
+
+        alert(
+            "Enter valid stock quantities."
+        );
+
+        return;
+
+    }
+
+
+    if (
+        opening < 0 ||
+        additions < 0 ||
+        closing < 0
+    ) {
+
+        alert(
+            "Stock quantities cannot be negative."
+        );
+
+        return;
+
+    }
+
+
+    const available =
+        opening +
+        additions;
+
+
+    if (closing > available) {
+
         alert(
             "Closing stock cannot be greater than opening stock plus additions."
         );
 
         return;
+
     }
 
+
+    const unitsSold =
+        available -
+        closing;
+
+
     try {
-        await apiRequest(
-            "/api/daily-stock",
+
+        console.log(
+            "Saving daily stock:",
             {
-                method: "POST",
-                body:
-                    JSON.stringify({
-                        business_id:
-                            Number(
-                                activeBusinessId
-                            ),
-                        date:
-                            currentDate,
-                        product_id:
-                            productId,
-                        opening_quantity:
-                            opening,
-                        additions,
-                        closing_quantity:
-                            closing
-                    })
+                business_id:
+                    Number(activeBusinessId),
+
+                date:
+                    currentDate,
+
+                product_id:
+                    Number(productId),
+
+                opening_quantity:
+                    opening,
+
+                additions:
+                    additions,
+
+                closing_quantity:
+                    closing
             }
         );
 
-        await loadDailyStock();
-        await loadDashboard();
+
+        const data =
+            await apiRequest(
+                "/api/daily-stock",
+                {
+                    method: "POST",
+
+                    body:
+                        JSON.stringify({
+
+                            business_id:
+                                Number(
+                                    activeBusinessId
+                                ),
+
+                            date:
+                                currentDate,
+
+                            product_id:
+                                Number(
+                                    productId
+                                ),
+
+                            opening_quantity:
+                                opening,
+
+                            additions:
+                                additions,
+
+                            closing_quantity:
+                                closing
+
+                        })
+                }
+            );
+
+
+        console.log(
+            "Daily stock saved:",
+            data
+        );
+
 
         alert(
-            "Daily stock saved."
+            `Stock saved successfully.\n\nUnits sold: ${unitsSold}`
         );
+
+
+        /*
+         * Reload the stock table.
+         */
+        await loadDailyStock();
+
+
+        /*
+         * Reload dashboard values.
+         */
+        await loadDashboard();
+
+
+        /*
+         * Reload report.
+         */
+        await loadDailyReport();
+
+
     } catch (error) {
+
         console.error(
-            "Save daily stock:",
+            "Save daily stock error:",
             error
         );
 
+
         alert(
+            "Could not save stock.\n\n" +
             error.message
         );
+
     }
+
 }
 
 /* =====================================================
