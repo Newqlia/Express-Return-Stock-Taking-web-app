@@ -2,7 +2,6 @@
 <html lang="en">
 
 <head>
-
     <meta charset="UTF-8">
 
     <meta
@@ -16,13 +15,12 @@
         rel="stylesheet"
         href="style.css"
     >
-
 </head>
 
 <body>
 
 <!-- =====================================================
-     SIDEBAR
+SIDEBAR
 ===================================================== -->
 
 <aside class="sidebar">
@@ -34,7 +32,6 @@
         </div>
 
         <div>
-
             <h1>
                 Express Returns
             </h1>
@@ -42,10 +39,10 @@
             <p>
                 Stock & Finance
             </p>
-
         </div>
 
     </div>
+
 
     <nav class="navigation">
 
@@ -114,6 +111,7 @@
 
     </nav>
 
+
     <div class="sidebar-footer">
 
         <strong>
@@ -130,13 +128,14 @@
 
 
 <!-- =====================================================
-     MAIN APPLICATION
+MAIN APPLICATION
 ===================================================== -->
 
 <div class="main-container">
 
+
     <!-- =================================================
-         TOP BAR
+    TOP BAR
     ================================================== -->
 
     <header class="topbar">
@@ -152,6 +151,7 @@
             </p>
 
         </div>
+
 
         <!-- BUSINESS CONTROL -->
 
@@ -173,6 +173,7 @@
 
             </div>
 
+
             <button
                 type="button"
                 id="addBusinessButton"
@@ -182,6 +183,7 @@
             </button>
 
         </div>
+
 
         <!-- DATE CONTROL -->
 
@@ -203,8 +205,9 @@
 
     <main>
 
+
         <!-- =================================================
-             DASHBOARD
+        DASHBOARD
         ================================================== -->
 
         <section
@@ -224,7 +227,9 @@
 
             </div>
 
+
             <div class="summary-grid">
+
 
                 <div class="summary-card">
 
@@ -237,6 +242,7 @@
                     </strong>
 
                 </div>
+
 
                 <div class="summary-card">
 
@@ -253,6 +259,7 @@
 
                 </div>
 
+
                 <div class="summary-card">
 
                     <span>
@@ -267,6 +274,7 @@
                     </strong>
 
                 </div>
+
 
                 <div class="summary-card">
 
@@ -294,12 +302,13 @@
                         </h3>
 
                         <p>
-                            The system calculates stock movement automatically.
+                            Physical stock and receipt sales are tracked separately.
                         </p>
 
                     </div>
 
                 </div>
+
 
                 <div class="formula-box">
 
@@ -336,8 +345,25 @@
                     </span>
 
                     <div>
-                        Units Sold
+                        Physical Units Sold
                     </div>
+
+                </div>
+
+
+                <div class="formula-note">
+
+                    <strong>
+                        Important:
+                    </strong>
+
+                    Physical Units Sold is not the same as Receipt Sold.
+
+                    <br><br>
+
+                    <strong>
+                        Variance = Physical Units Sold - Receipt Units Sold
+                    </strong>
 
                 </div>
 
@@ -347,7 +373,7 @@
 
 
         <!-- =================================================
-             PRODUCTS
+        PRODUCTS
         ================================================== -->
 
         <section
@@ -367,15 +393,18 @@
 
             </div>
 
+
             <div class="card">
 
                 <h3>
                     Add Product
                 </h3>
 
+
                 <form id="productForm">
 
                     <div class="form-grid">
+
 
                         <div class="form-group">
 
@@ -391,6 +420,7 @@
                             >
 
                         </div>
+
 
                         <div class="form-group">
 
@@ -408,6 +438,7 @@
                             >
 
                         </div>
+
 
                         <div class="form-group">
 
@@ -428,6 +459,7 @@
 
                     </div>
 
+
                     <button
                         type="submit"
                         class="primary-button"
@@ -436,6 +468,7 @@
                     </button>
 
                 </form>
+
 
                 <p
                     id="formMessage"
@@ -461,6 +494,7 @@
 
                     </div>
 
+
                     <button
                         type="button"
                         id="refreshProducts"
@@ -470,6 +504,7 @@
                     </button>
 
                 </div>
+
 
                 <div class="table-container">
 
@@ -507,6 +542,7 @@
 
                         </thead>
 
+
                         <tbody id="productsTableBody">
 
                             <tr>
@@ -532,7 +568,7 @@
 
 
         <!-- =================================================
-             OPENING STOCK
+        OPENING STOCK
         ================================================== -->
 
         <section
@@ -552,6 +588,7 @@
 
             </div>
 
+
             <div class="card">
 
                 <div class="date-row">
@@ -570,6 +607,18 @@
                     </div>
 
                 </div>
+
+
+                <div class="formula-note">
+
+                    Opening Stock is the quantity available at the beginning of the business day.
+
+                    <br><br>
+
+                    This quantity will be used by Daily Stock.
+
+                </div>
+
 
                 <div class="table-container">
 
@@ -595,6 +644,9 @@
 
                         </thead>
 
+
+                        <!-- IMPORTANT ID -->
+
                         <tbody id="openingStockTableBody">
 
                         </tbody>
@@ -609,7 +661,7 @@
 
 
         <!-- =================================================
-             DAILY STOCK
+        DAILY STOCK
         ================================================== -->
 
         <section
@@ -628,6 +680,7 @@
                 </p>
 
             </div>
+
 
             <div class="card">
 
@@ -648,11 +701,76 @@
 
                 </div>
 
-                <div class="formula-note">
 
-                    Opening + Additions - Closing = Physical Units Sold
+                <!-- STOCK FORMULA -->
+
+                <div class="formula-box">
+
+                    <div>
+                        Opening
+                    </div>
+
+                    <span>
+                        +
+                    </span>
+
+                    <div>
+                        Additions
+                    </div>
+
+                    <span>
+                        =
+                    </span>
+
+                    <div>
+                        Available
+                    </div>
+
+                    <span>
+                        -
+                    </span>
+
+                    <div>
+                        Closing
+                    </div>
+
+                    <span>
+                        =
+                    </span>
+
+                    <div>
+                        Physical Sold
+                    </div>
 
                 </div>
+
+
+                <div class="formula-note">
+
+                    <strong>
+                        Physical Sold
+                    </strong>
+
+                    is calculated from the stock count.
+
+                    <br><br>
+
+                    <strong>
+                        Receipt Sold
+                    </strong>
+
+                    comes from Sales & Receipts.
+
+                    <br><br>
+
+                    <strong>
+                        Variance
+                    </strong>
+
+                    = Physical Sold - Receipt Sold
+
+                </div>
+
 
                 <div class="table-container">
 
@@ -683,7 +801,7 @@
                                 </th>
 
                                 <th>
-                                    Stock Sold
+                                    Physical Sold
                                 </th>
 
                                 <th>
@@ -695,12 +813,23 @@
                                 </th>
 
                                 <th>
-                                    Sales
+                                    Selling Price
+                                </th>
+
+                                <th>
+                                    Stock Sales
+                                </th>
+
+                                <th>
+                                    Action
                                 </th>
 
                             </tr>
 
                         </thead>
+
+
+                        <!-- IMPORTANT ID -->
 
                         <tbody id="dailyStockTableBody">
 
@@ -716,7 +845,7 @@
 
 
         <!-- =================================================
-             SALES & RECEIPTS
+        SALES & RECEIPTS
         ================================================== -->
 
         <section
@@ -736,11 +865,13 @@
 
             </div>
 
+
             <div class="card">
 
                 <h3>
                     New Sale
                 </h3>
+
 
                 <form id="saleForm">
 
@@ -767,6 +898,7 @@
 
                             </div>
 
+
                             <div class="form-group">
 
                                 <label>
@@ -784,6 +916,7 @@
 
                             </div>
 
+
                             <div class="form-group">
 
                                 <label>
@@ -799,6 +932,7 @@
 
                             </div>
 
+
                             <button
                                 type="button"
                                 class="remove-sale-line"
@@ -809,6 +943,7 @@
                         </div>
 
                     </div>
+
 
                     <div class="sale-actions">
 
@@ -821,6 +956,7 @@
                         </button>
 
                     </div>
+
 
                     <div class="form-grid">
 
@@ -850,6 +986,7 @@
 
                     </div>
 
+
                     <div class="sale-total">
 
                         <span>
@@ -862,12 +999,14 @@
 
                     </div>
 
+
                     <button
                         type="submit"
                         class="primary-button"
                     >
                         Complete Sale
                     </button>
+
 
                     <p
                         id="saleMessage"
@@ -895,6 +1034,7 @@
 
                     </div>
 
+
                     <strong class="money">
 
                         KES
@@ -906,6 +1046,7 @@
                     </strong>
 
                 </div>
+
 
                 <div id="salesList">
 
@@ -921,7 +1062,7 @@
 
 
         <!-- =================================================
-             PURCHASES
+        PURCHASES
         ================================================== -->
 
         <section
@@ -941,13 +1082,16 @@
 
             </div>
 
+
             <div class="card">
 
                 <h3>
                     Record Purchase
                 </h3>
 
+
                 <div class="form-grid">
+
 
                     <div class="form-group">
 
@@ -965,6 +1109,7 @@
 
                     </div>
 
+
                     <div class="form-group">
 
                         <label for="purchaseQuantity">
@@ -980,6 +1125,7 @@
                         >
 
                     </div>
+
 
                     <div class="form-group">
 
@@ -999,6 +1145,7 @@
 
                 </div>
 
+
                 <button
                     type="button"
                     id="savePurchase"
@@ -1006,6 +1153,7 @@
                 >
                     Record Purchase
                 </button>
+
 
                 <p
                     id="purchaseMessage"
@@ -1027,6 +1175,7 @@
 
                     </div>
 
+
                     <strong class="money">
 
                         KES
@@ -1038,6 +1187,7 @@
                     </strong>
 
                 </div>
+
 
                 <div
                     id="purchaseList"
@@ -1056,7 +1206,7 @@
 
 
         <!-- =================================================
-             EXPENSES
+        EXPENSES
         ================================================== -->
 
         <section
@@ -1076,13 +1226,16 @@
 
             </div>
 
+
             <div class="card">
 
                 <h3>
                     Record Expense
                 </h3>
 
+
                 <div class="form-grid">
+
 
                     <div class="form-group">
 
@@ -1097,6 +1250,7 @@
                         >
 
                     </div>
+
 
                     <div class="form-group">
 
@@ -1116,6 +1270,7 @@
 
                 </div>
 
+
                 <button
                     type="button"
                     id="saveExpense"
@@ -1123,6 +1278,7 @@
                 >
                     Record Expense
                 </button>
+
 
                 <p
                     id="expenseMessage"
@@ -1144,6 +1300,7 @@
 
                     </div>
 
+
                     <strong class="money">
 
                         KES
@@ -1155,6 +1312,7 @@
                     </strong>
 
                 </div>
+
 
                 <div id="expenseList">
 
@@ -1170,7 +1328,7 @@
 
 
         <!-- =================================================
-             RECONCILIATION
+        RECONCILIATION
         ================================================== -->
 
         <section
@@ -1185,12 +1343,14 @@
                 </h2>
 
                 <p>
-                    Compare expected money with actual money.
+                    Compare expected money from receipts with actual money.
                 </p>
 
             </div>
 
+
             <div class="card">
+
 
                 <div class="date-row">
 
@@ -1212,10 +1372,11 @@
 
                 <div class="reconciliation-grid">
 
+
                     <div class="money-card">
 
                         <span>
-                            Total Sales
+                            Receipt Sales
                         </span>
 
                         <strong>
@@ -1229,6 +1390,7 @@
                         </strong>
 
                     </div>
+
 
                     <div class="money-card">
 
@@ -1247,6 +1409,7 @@
                         </strong>
 
                     </div>
+
 
                     <div class="money-card">
 
@@ -1271,6 +1434,7 @@
 
                 <div class="form-grid">
 
+
                     <div class="form-group">
 
                         <label for="cashAtHand">
@@ -1286,6 +1450,7 @@
                         >
 
                     </div>
+
 
                     <div class="form-group">
 
@@ -1305,6 +1470,7 @@
 
                 </div>
 
+
                 <button
                     type="button"
                     id="calculateReconciliation"
@@ -1315,6 +1481,7 @@
 
 
                 <div class="reconciliation-results">
+
 
                     <div>
 
@@ -1334,6 +1501,7 @@
 
                     </div>
 
+
                     <div>
 
                         <span>
@@ -1351,6 +1519,7 @@
                         </strong>
 
                     </div>
+
 
                     <div>
 
@@ -1370,6 +1539,7 @@
 
                     </div>
 
+
                     <div>
 
                         <span>
@@ -1387,13 +1557,40 @@
 
                 </div>
 
+
+                <div class="formula-note">
+
+                    <strong>
+                        Expected Money
+                    </strong>
+
+                    = Receipt Sales - Expenses - Purchases
+
+                    <br><br>
+
+                    <strong>
+                        Actual Money
+                    </strong>
+
+                    = Cash At Hand + Safaricom Till
+
+                    <br><br>
+
+                    <strong>
+                        Difference
+                    </strong>
+
+                    = Actual Money - Expected Money
+
+                </div>
+
             </div>
 
         </section>
 
 
         <!-- =================================================
-             REPORTS
+        REPORTS
         ================================================== -->
 
         <section
@@ -1413,7 +1610,9 @@
 
             </div>
 
+
             <div class="card">
+
 
                 <div class="date-row">
 
@@ -1430,6 +1629,7 @@
 
                     </div>
 
+
                     <button
                         type="button"
                         id="loadReport"
@@ -1443,6 +1643,7 @@
 
                 <div class="report-summary">
 
+
                     <div>
 
                         <span>
@@ -1455,10 +1656,11 @@
 
                     </div>
 
+
                     <div>
 
                         <span>
-                            Sales
+                            Receipt Sales
                         </span>
 
                         <strong>
@@ -1472,6 +1674,7 @@
                         </strong>
 
                     </div>
+
 
                     <div>
 
@@ -1490,6 +1693,7 @@
                         </strong>
 
                     </div>
+
 
                     <div>
 
@@ -1533,11 +1737,15 @@
                                 </th>
 
                                 <th>
+                                    Available
+                                </th>
+
+                                <th>
                                     Closing
                                 </th>
 
                                 <th>
-                                    Stock Sold
+                                    Physical Sold
                                 </th>
 
                                 <th>
@@ -1560,6 +1768,7 @@
 
                         </thead>
 
+
                         <tbody id="reportTable">
 
                         </tbody>
@@ -1572,13 +1781,14 @@
 
         </section>
 
+
     </main>
 
 </div>
 
 
 <!-- =====================================================
-     ADD BUSINESS MODAL
+ADD BUSINESS MODAL
 ===================================================== -->
 
 <div
@@ -1587,6 +1797,7 @@
 >
 
     <div class="modal-content">
+
 
         <div class="modal-header">
 
@@ -1602,6 +1813,7 @@
 
             </div>
 
+
             <button
                 type="button"
                 id="closeBusinessModal"
@@ -1613,9 +1825,12 @@
 
         </div>
 
+
         <form id="businessForm">
 
+
             <div class="form-grid modal-form-grid">
+
 
                 <div class="form-group">
 
@@ -1633,6 +1848,7 @@
 
                 </div>
 
+
                 <div class="form-group">
 
                     <label for="businessPhone">
@@ -1648,6 +1864,7 @@
 
                 </div>
 
+
                 <div class="form-group">
 
                     <label for="businessLocation">
@@ -1662,6 +1879,7 @@
                     >
 
                 </div>
+
 
                 <div class="form-group">
 
@@ -1680,12 +1898,15 @@
 
             </div>
 
+
             <p
                 id="businessMessage"
                 class="form-message"
             ></p>
 
+
             <div class="modal-actions">
+
 
                 <button
                     type="button"
@@ -1694,6 +1915,7 @@
                 >
                     Cancel
                 </button>
+
 
                 <button
                     type="submit"
@@ -1712,13 +1934,14 @@
 
 
 <!-- =====================================================
-     RECEIPT PRINT AREA
+RECEIPT PRINT AREA
 ===================================================== -->
 
 <div
     id="receiptPrint"
     class="receipt-print"
 >
+
 
     <div class="receipt-header">
 
@@ -1732,32 +1955,46 @@
 
     </div>
 
+
     <div class="receipt-details">
 
         <div>
+
             Receipt:
+
             <strong id="receiptNumber">
                 -
             </strong>
+
         </div>
 
+
         <div>
+
             Date:
+
             <strong id="receiptDate">
                 -
             </strong>
+
         </div>
 
+
         <div>
+
             Payment:
+
             <strong id="receiptPayment">
                 -
             </strong>
+
         </div>
 
     </div>
 
+
     <div id="receiptItems"></div>
+
 
     <div class="receipt-total">
 
@@ -1771,6 +2008,7 @@
 
     </div>
 
+
     <div class="receipt-footer">
 
         Thank you for your business.
@@ -1780,9 +2018,12 @@
 </div>
 
 
+<!-- =====================================================
+JAVASCRIPT
+===================================================== -->
+
 <script src="script.js"></script>
 
 </body>
 
 </html>
-

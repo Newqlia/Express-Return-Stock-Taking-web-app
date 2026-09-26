@@ -1,5 +1,15 @@
-const API_URL =
-    "https://stunning-space-bassoon-69v9r76w4q5525xq6-3000.app.github.dev";
+const API_URL = (() => {
+    const hostname = window.location.hostname;
+
+    if (hostname.endsWith(".app.github.dev")) {
+        return `${window.location.protocol}//${hostname.replace(
+            /-\d+\.app\.github\.dev$/,
+            "-3000.app.github.dev"
+        )}`;
+    }
+
+    return "http://localhost:3000";
+})();
 
 /* =====================================================
    GLOBAL STATE
@@ -15,6 +25,8 @@ let currentDate =
 
 let products = [];
 let dailyStock = [];
+let openingStock = [];
+let dailyReportProducts = [];
 let sales = [];
 let purchases = [];
 let expenses = [];
@@ -833,7 +845,9 @@ async function addProduct(event) {
             ?.reset();
 
         await loadProducts();
+        await loadOpeningStock();
         await loadDailyStock();
+        await loadDailyReport();
 
         alert(
             "Product added successfully."
@@ -889,7 +903,7 @@ async function deleteProduct(
 function populateProductSelects() {
     document
         .querySelectorAll(
-            ".product-select"
+            ".product-select, .sale-product"
         )
         .forEach(
             select => {
@@ -957,9 +971,9 @@ async function loadOpeningStock() {
             `/api/opening-stock?${getBusinessQuery()}&date=${encodeURIComponent(currentDate)}`
         );
 
-        const stock = data.stock || [];
+        openingStock = data.stock || [];
 
-        renderOpeningStock(stock);
+        renderOpeningStock(openingStock);
 
     } catch (error) {
 
@@ -977,7 +991,7 @@ async function loadOpeningStock() {
 
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="4" class="empty-message">
+                    <td colspan="3" class="empty-message">
                         Failed to load opening stock:
                         ${escapeHtml(error.message)}
                     </td>
@@ -1011,7 +1025,7 @@ function renderOpeningStock(stock) {
 
         tbody.innerHTML = `
             <tr>
-                <td colspan="4" class="empty-message">
+                <td colspan="3" class="empty-message">
                     No products found for this business.
                 </td>
             </tr>
@@ -1051,10 +1065,6 @@ function renderOpeningStock(stock) {
                     data-product-id="${product.id}"
                     value="${openingQuantity}"
                 >
-            </td>
-
-            <td>
-                KES ${money(product.selling_price)}
             </td>
 
             <td>
@@ -1146,6 +1156,8 @@ async function saveOpeningStock(productId) {
 
         await loadDailyStock();
 
+        await loadDailyReport();
+
         await loadDashboard();
 
         alert(
@@ -1205,7 +1217,7 @@ async function loadDailyStock() {
 
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="8" class="empty-message">
+                    <td colspan="11" class="empty-message">
                         Failed to load daily stock:
                         ${escapeHtml(error.message)}
                     </td>
@@ -1241,7 +1253,7 @@ function renderDailyStock(stock) {
 
         tbody.innerHTML = `
             <tr>
-                <td colspan="8" class="empty-message">
+                <td colspan="11" class="empty-message">
                     No products found.
                 </td>
             </tr>
@@ -1309,6 +1321,16 @@ function renderDailyStock(stock) {
             additions -
             closing;
 
+        const reportProduct =
+            dailyReportProducts.find(
+                item => Number(item.id) === Number(product.id)
+            );
+
+        const receiptSold =
+            Number(reportProduct?.recorded_units_sold || 0);
+
+        const available = opening + additions;
+
 
         const sales =
             unitsSold *
@@ -1325,6 +1347,11 @@ function renderDailyStock(stock) {
 
             <td>
                 ${escapeHtml(product.name)}
+            </td>
+
+
+            <td class="daily-available">
+                ${number(available)}
             </td>
 
 
@@ -1372,6 +1399,16 @@ function renderDailyStock(stock) {
 
             <td class="daily-units-sold">
                 ${number(unitsSold)}
+            </td>
+
+
+            <td class="daily-receipt-sold">
+                ${number(receiptSold)}
+            </td>
+
+
+            <td class="daily-variance">
+                ${number(unitsSold - receiptSold)}
             </td>
 
 
@@ -1442,6 +1479,12 @@ function renderDailyStock(stock) {
                 additionsValue -
                 closingValue;
 
+            const availableElement =
+                tr.querySelector(".daily-available");
+
+            const varianceElement =
+                tr.querySelector(".daily-variance");
+
 
             const salesAmount =
                 sold *
@@ -1466,6 +1509,16 @@ function renderDailyStock(stock) {
                 soldElement.textContent =
                     number(sold);
 
+            }
+
+            if (availableElement) {
+                availableElement.textContent =
+                    number(openingValue + additionsValue);
+            }
+
+            if (varianceElement) {
+                varianceElement.textContent =
+                    number(sold - receiptSold);
             }
 
 
@@ -1509,7 +1562,7 @@ function renderDailyStock(stock) {
 function awaitFindOpeningStock(productId) {
 
     const record =
-        dailyStock.find(
+        openingStock.find(
             item =>
                 Number(item.product_id) ===
                 Number(productId)
@@ -1755,140 +1808,23 @@ async function saveDailyStock(productId) {
 function addSaleLine() {
     const container =
         document.getElementById(
-            "saleLines"
+            "saleItems"
         );
 
-    if (!container) {
+    const firstLine =
+        container?.querySelector(
+            ".sale-line"
+        );
+
+    if (!container || !firstLine) {
         return;
     }
 
-    const line =
-        document.createElement(
-            "div"
-        );
-
-    line.className =
-        "sale-line";
-
-    line.innerHTML =
-        `
-        <select class="sale-product product-select">
-            <option value="">
-                Select product
-            </option>
-        </select>
-
-        <input
-            type="number"
-            min="1"
-            step="1"
-            value="1"
-            class="sale-quantity"
-            placeholder="Qty"
-        >
-
-        <input
-            type="number"
-            min="0"
-            step="0.01"
-            class="sale-price"
-            placeholder="Price"
-        >
-
-        <span class="sale-line-total">
-            KES 0.00
-        </span>
-
-        <button
-            type="button"
-            class="remove-sale-line btn-danger"
-        >
-            ×
-        </button>
-        `;
-
-    container.appendChild(
-        line
-    );
-
-    const select =
-        line.querySelector(
-            ".sale-product"
-        );
-
-    products.forEach(
-        product => {
-            const option =
-                document.createElement(
-                    "option"
-                );
-
-            option.value =
-                product.id;
-
-            option.textContent =
-                `${product.name} - KES ${product.selling_price}`;
-
-            select.appendChild(
-                option
-            );
-        }
-    );
-
-    select.addEventListener(
-        "change",
-        () => {
-            const product =
-                products.find(
-                    item =>
-                        String(
-                            item.id
-                        ) ===
-                        String(
-                            select.value
-                        )
-                );
-
-            const price =
-                line.querySelector(
-                    ".sale-price"
-                );
-
-            if (
-                product &&
-                price
-            ) {
-                price.value =
-                    product.selling_price;
-            }
-
-            calculateSaleTotal();
-        }
-    );
-
-    line.querySelector(
-        ".sale-quantity"
-    ).addEventListener(
-        "input",
-        calculateSaleTotal
-    );
-
-    line.querySelector(
-        ".sale-price"
-    ).addEventListener(
-        "input",
-        calculateSaleTotal
-    );
-
-    line.querySelector(
-        ".remove-sale-line"
-    ).addEventListener(
-        "click",
-        () => {
-            line.remove();
-            calculateSaleTotal();
-        }
-    );
+    const line = firstLine.cloneNode(true);
+    line.querySelector(".sale-product").value = "";
+    line.querySelector(".sale-quantity").value = "1";
+    line.querySelector(".sale-line-total").value = "KES 0.00";
+    container.appendChild(line);
 
     calculateSaleTotal();
 }
@@ -1909,12 +1845,21 @@ function calculateSaleTotal() {
                         )?.value || 0
                     );
 
-                const price =
-                    Number(
-                        line.querySelector(
-                            ".sale-price"
-                        )?.value || 0
+                const productId =
+                    line.querySelector(
+                        ".sale-product"
+                    )?.value;
+
+                const product =
+                    products.find(
+                        item =>
+                            String(item.id) ===
+                            String(productId)
                     );
+
+                const price = Number(
+                    product?.selling_price || 0
+                );
 
                 const lineTotal =
                     quantity *
@@ -1931,21 +1876,14 @@ function calculateSaleTotal() {
                 if (
                     totalElement
                 ) {
-                    totalElement.textContent =
-                        `KES ${money(
-                            lineTotal
-                        )}`;
+                    totalElement.value =
+                        `KES ${money(lineTotal)}`;
                 }
             }
         );
 
     setText(
-        "saleGrandTotal",
-        `KES ${money(total)}`
-    );
-
-    setText(
-        "salesTotal",
+        "saleTotal",
         `KES ${money(total)}`
     );
 
@@ -1975,13 +1913,6 @@ function collectSaleItems() {
                         )?.value || 0
                     );
 
-                const price =
-                    Number(
-                        line.querySelector(
-                            ".sale-price"
-                        )?.value || 0
-                    );
-
                 if (
                     productId &&
                     quantity > 0
@@ -1989,9 +1920,7 @@ function collectSaleItems() {
                     items.push({
                         product_id:
                             productId,
-                        quantity,
-                        selling_price:
-                            price
+                        quantity
                     });
                 }
             }
@@ -2079,19 +2008,25 @@ async function completeSale(
 function clearSaleForm() {
     const container =
         document.getElementById(
-            "saleLines"
+            "saleItems"
         );
 
     if (container) {
-        container.innerHTML =
-            "";
-    }
+        const lines =
+            container.querySelectorAll(
+                ".sale-line"
+            );
 
-    addSaleLine();
+        lines.forEach((line, index) => {
+            if (index > 0) {
+                line.remove();
+            }
+        });
+    }
 
     const form =
         document.getElementById(
-            "salesForm"
+            "saleForm"
         );
 
     if (form) {
@@ -2125,74 +2060,50 @@ async function loadSales() {
 }
 
 function renderSales() {
-    const tbody =
+    const list =
         document.getElementById(
-            "salesTableBody"
+            "salesList"
         );
 
-    if (!tbody) {
+    if (!list) {
         return;
     }
 
-    tbody.innerHTML =
-        "";
+    list.innerHTML = "";
 
     if (!sales.length) {
-        tbody.innerHTML =
-            `
-            <tr>
-                <td colspan="6">
-                    No sales recorded.
-                </td>
-            </tr>
-            `;
+        list.innerHTML = `
+            <div class="empty-state">
+                No sales recorded yet.
+            </div>
+        `;
+        setText("totalSales", "0.00");
 
         return;
     }
+
+    let totalSales = 0;
 
     sales.forEach(
         sale => {
-            const tr =
+            totalSales += Number(sale.total_amount || 0);
+
+            const item =
                 document.createElement(
-                    "tr"
+                    "article"
                 );
 
-            tr.innerHTML =
+            item.className = "transaction-row";
+            item.innerHTML =
                 `
-                <td>
-                    ${escapeHtml(
-                        sale.receipt_number
-                    )}
-                </td>
-
-                <td>
-                    ${formatDate(
-                        sale.date
-                    )}
-                </td>
-
-                <td>
-                    ${escapeHtml(
-                        sale.payment_method
-                    )}
-                </td>
-
-                <td>
-                    KES ${money(
-                        sale.total_amount
-                    )}
-                </td>
-
-                <td>
-                    ${formatDate(
-                        sale.created_at?.split(
-                            " "
-                        )[0]
-                    )}
-                </td>
-
-                <td>
+                <div class="transaction-main">
+                    <strong>${escapeHtml(sale.receipt_number)}</strong>
+                    <span>${formatDate(sale.date)} - ${escapeHtml(sale.payment_method)}</span>
+                </div>
+                <strong>KES ${money(sale.total_amount)}</strong>
+                <div class="transaction-actions">
                     <button
+                        type="button"
                         class="secondary-button btn-small"
                         onclick="printReceipt(${sale.id})"
                     >
@@ -2200,19 +2111,22 @@ function renderSales() {
                     </button>
 
                     <button
+                        type="button"
                         class="btn-danger btn-small"
                         onclick="deleteSale(${sale.id})"
                     >
                         Delete
                     </button>
-                </td>
+                </div>
                 `;
 
-            tbody.appendChild(
-                tr
+            list.appendChild(
+                item
             );
         }
     );
+
+    setText("totalSales", money(totalSales));
 }
 
 async function deleteSale(
@@ -2453,87 +2367,65 @@ async function loadPurchases() {
 }
 
 function renderPurchases() {
-    const tbody =
+    const list =
         document.getElementById(
-            "purchasesTableBody"
+            "purchaseList"
         );
 
-    if (!tbody) {
+    if (!list) {
         return;
     }
 
-    tbody.innerHTML =
-        "";
+    list.innerHTML = "";
 
     if (!purchases.length) {
-        tbody.innerHTML =
-            `
-            <tr>
-                <td colspan="7">
-                    No purchases recorded.
-                </td>
-            </tr>
-            `;
+        list.innerHTML = `
+            <div class="empty-state">
+                No purchases recorded yet.
+            </div>
+        `;
+        setText("purchaseTotal", "0.00");
 
         return;
     }
+
+    let totalPurchases = 0;
 
     purchases.forEach(
         purchase => {
-            const tr =
+            totalPurchases += Number(purchase.amount || 0);
+
+            const item =
                 document.createElement(
-                    "tr"
+                    "div"
                 );
 
-            tr.innerHTML =
+            item.className = "transaction-row";
+            item.innerHTML =
                 `
-                <td>
-                    ${formatDate(
-                        purchase.date
-                    )}
-                </td>
-
-                <td>
-                    ${escapeHtml(
-                        purchase.name ||
-                        ""
-                    )}
-                </td>
-
-                <td>
-                    ${number(
-                        purchase.quantity
-                    )}
-                </td>
-
-                <td>
-                    KES ${money(
-                        purchase.amount
-                    )}
-                </td>
-
-                <td>
-                    ${escapeHtml(
-                        purchase.supplier ||
-                        ""
-                    )}
-                </td>
-
-                <td>
+                <div class="transaction-main">
+                    <strong>${escapeHtml(purchase.name || "Purchase")}</strong>
+                    <span>${formatDate(purchase.date)} - ${number(purchase.quantity)} units${purchase.supplier ? ` - ${escapeHtml(purchase.supplier)}` : ""}</span>
+                </div>
+                <strong>KES ${money(purchase.amount)}</strong>
+                <div class="transaction-actions">
                     <button
+                        type="button"
                         class="btn-danger btn-small"
                         onclick="deletePurchase(${purchase.id})"
                     >
                         Delete
                     </button>
-                </td>
+                </div>
                 `;
 
-            tbody.appendChild(
-                tr
+            list.appendChild(
+                item
             );
         }
     );
+
+    setText("purchaseTotal", money(totalPurchases));
 }
 
 async function addPurchase(
@@ -2579,6 +2471,16 @@ async function addPurchase(
         return;
     }
 
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+        alert("Enter a valid purchase quantity.");
+        return;
+    }
+
+    if (!Number.isFinite(amount) || amount < 0) {
+        alert("Enter a valid purchase amount.");
+        return;
+    }
+
     try {
         await apiRequest(
             "/api/purchases",
@@ -2601,18 +2503,17 @@ async function addPurchase(
             }
         );
 
-        document
-            .getElementById(
-                "purchaseForm"
-            )
-            ?.reset();
+        setValue("purchaseProduct", "");
+        setValue("purchaseQuantity", "");
+        setValue("purchaseAmount", "");
 
         await loadPurchases();
         await loadDailyStock();
         await loadDashboard();
 
-        alert(
-            "Purchase saved."
+        showMessage(
+            "purchaseMessage",
+            "Purchase saved successfully."
         );
     } catch (error) {
         console.error(
@@ -2694,73 +2595,65 @@ async function loadExpenses() {
 }
 
 function renderExpenses() {
-    const tbody =
+    const list =
         document.getElementById(
-            "expensesTableBody"
+            "expenseList"
         );
 
-    if (!tbody) {
+    if (!list) {
         return;
     }
 
-    tbody.innerHTML =
-        "";
+    list.innerHTML = "";
 
     if (!expenses.length) {
-        tbody.innerHTML =
-            `
-            <tr>
-                <td colspan="4">
-                    No expenses recorded.
-                </td>
-            </tr>
-            `;
+        list.innerHTML = `
+            <div class="empty-state">
+                No expenses recorded yet.
+            </div>
+        `;
+        setText("expenseTotal", "0.00");
 
         return;
     }
+
+    let totalExpenses = 0;
 
     expenses.forEach(
         expense => {
-            const tr =
+            totalExpenses += Number(expense.amount || 0);
+
+            const item =
                 document.createElement(
-                    "tr"
+                    "div"
                 );
 
-            tr.innerHTML =
+            item.className = "transaction-row";
+            item.innerHTML =
                 `
-                <td>
-                    ${formatDate(
-                        expense.date
-                    )}
-                </td>
-
-                <td>
-                    ${escapeHtml(
-                        expense.description
-                    )}
-                </td>
-
-                <td>
-                    KES ${money(
-                        expense.amount
-                    )}
-                </td>
-
-                <td>
+                <div class="transaction-main">
+                    <strong>${escapeHtml(expense.description)}</strong>
+                    <span>${formatDate(expense.date)}</span>
+                </div>
+                <strong>KES ${money(expense.amount)}</strong>
+                <div class="transaction-actions">
                     <button
+                        type="button"
                         class="btn-danger btn-small"
                         onclick="deleteExpense(${expense.id})"
                     >
                         Delete
                     </button>
-                </td>
+                </div>
                 `;
 
-            tbody.appendChild(
-                tr
+            list.appendChild(
+                item
             );
         }
     );
+
+    setText("expenseTotal", money(totalExpenses));
 }
 
 async function addExpense(
@@ -2792,6 +2685,11 @@ async function addExpense(
         return;
     }
 
+    if (!Number.isFinite(amount) || amount <= 0) {
+        alert("Enter a valid expense amount.");
+        return;
+    }
+
     try {
         await apiRequest(
             "/api/expenses",
@@ -2811,18 +2709,16 @@ async function addExpense(
             }
         );
 
-        document
-            .getElementById(
-                "expenseForm"
-            )
-            ?.reset();
+        setValue("expenseDescription", "");
+        setValue("expenseAmount", "");
 
         await loadExpenses();
         await loadDashboard();
         await loadReconciliation();
 
-        alert(
-            "Expense saved."
+        showMessage(
+            "expenseMessage",
+            "Expense saved successfully."
         );
     } catch (error) {
         console.error(
@@ -2904,51 +2800,44 @@ async function loadReconciliation() {
         );
 
         setText(
-            "reconciliationSales",
-            `KES ${money(
-                data.total_sales
-            )}`
+            "reconcileSales",
+            money(data.total_sales)
         );
 
         setText(
-            "reconciliationExpenses",
-            `KES ${money(
-                data.total_expenses
-            )}`
+            "reconcileExpenses",
+            money(data.total_expenses)
         );
 
         setText(
-            "reconciliationPurchases",
-            `KES ${money(
-                data.total_purchases
-            )}`
+            "reconcilePurchases",
+            money(data.total_purchases)
         );
 
         setText(
             "expectedMoney",
-            `KES ${money(
-                data.expected_money
-            )}`
+            money(data.expected_money)
         );
 
         setText(
             "actualMoney",
-            `KES ${money(
-                data.actual_money
-            )}`
+            money(data.actual_money)
         );
 
         setText(
-            "difference",
-            `KES ${money(
-                data.difference
-            )}`
+            "moneyDifference",
+            money(data.difference)
         );
 
         setText(
             "reconciliationStatus",
             data.status
         );
+
+        const status = document.getElementById("reconciliationStatus");
+        if (status) {
+            status.className = `status-badge ${String(data.status || "balanced").toLowerCase()}`;
+        }
     } catch (error) {
         console.error(
             "Reconciliation error:",
@@ -3051,8 +2940,11 @@ function renderDailyReport(
 ) {
     const tbody =
         document.getElementById(
-            "reportTableBody"
+                "reportTable"
         );
+
+            dailyReportProducts = data.products || [];
+            renderDailyStock(dailyStock);
 
     if (tbody) {
         tbody.innerHTML =
@@ -3085,6 +2977,13 @@ function renderDailyReport(
                     <td>
                         ${number(
                             product.additions
+                        )}
+                    </td>
+
+                    <td>
+                        ${number(
+                            Number(product.opening_quantity || 0) +
+                            Number(product.additions || 0)
                         )}
                     </td>
 
@@ -3155,23 +3054,26 @@ function renderDailyReport(
 
     setText(
         "reportReceiptUnits",
-        number(
-            data.totals?.receiptUnits
-        )
+        number(data.totals?.receiptUnits)
+    );
+
+    setText(
+        "reportUnits",
+        number(data.totals?.receiptUnits)
+    );
+    setText(
+        "reportSales",
+        money(data.totals?.receiptSales)
     );
 
     setText(
         "reportCost",
-        `KES ${money(
-            data.totals?.cost
-        )}`
+        money(data.totals?.cost)
     );
 
     setText(
         "reportProfit",
-        `KES ${money(
-            data.totals?.profit
-        )}`
+        money(data.totals?.profit)
     );
 
     setText(
@@ -3206,16 +3108,12 @@ async function loadDashboard() {
 
         setText(
             "dashboardSales",
-            `KES ${money(
-                data.sales
-            )}`
+            money(data.sales)
         );
 
         setText(
             "dashboardExpenses",
-            `KES ${money(
-                data.expenses
-            )}`
+            money(data.expenses)
         );
 
         setText(
@@ -3237,54 +3135,25 @@ async function loadDashboard() {
 ===================================================== */
 
 function populateAllProductSelects() {
-    const selectors = [
-        "purchaseProduct"
+    const purchaseSelect = document.getElementById("purchaseProduct");
+    const selects = [
+        ...document.querySelectorAll(".sale-product"),
+        ...(purchaseSelect ? [purchaseSelect] : [])
     ];
 
-    selectors.forEach(
-        id => {
-            const select =
-                document.getElementById(
-                    id
-                );
+    selects.forEach(select => {
+        const oldValue = select.value;
+        select.innerHTML = `<option value="">Select product</option>`;
 
-            if (!select) {
-                return;
-            }
+        products.forEach(product => {
+            const option = document.createElement("option");
+            option.value = product.id;
+            option.textContent = `${product.name} - KES ${money(product.selling_price)}`;
+            select.appendChild(option);
+        });
 
-            const oldValue =
-                select.value;
-
-            select.innerHTML =
-                `
-                <option value="">
-                    Select product
-                </option>
-                `;
-
-            products.forEach(
-                product => {
-                    const option =
-                        document.createElement(
-                            "option"
-                        );
-
-                    option.value =
-                        product.id;
-
-                    option.textContent =
-                        product.name;
-
-                    select.appendChild(
-                        option
-                    );
-                }
-            );
-
-            select.value =
-                oldValue;
-        }
-    );
+        select.value = oldValue;
+    });
 }
 
 /* =====================================================
@@ -3448,6 +3317,26 @@ function setupEventListeners() {
         );
     }
 
+    ["stockDate", "dailyStockDate", "reconciliationDate", "reportDate"].forEach(id => {
+        const input = document.getElementById(id);
+        if (!input) {
+            return;
+        }
+
+        input.value = currentDate;
+        input.addEventListener("change", event => {
+            if (!event.target.value) {
+                return;
+            }
+
+            currentDate = event.target.value;
+            localStorage.setItem("stockSystemDate", currentDate);
+            setValue("globalDate", currentDate);
+            updateDateDisplay();
+            loadAll();
+        });
+    });
+
     const productForm =
         document.getElementById(
             "productForm"
@@ -3460,9 +3349,14 @@ function setupEventListeners() {
         );
     }
 
+    const refreshProducts = document.getElementById("refreshProducts");
+    if (refreshProducts) {
+        refreshProducts.addEventListener("click", loadProducts);
+    }
+
     const salesForm =
         document.getElementById(
-            "salesForm"
+            "saleForm"
         );
 
     if (salesForm) {
@@ -3474,7 +3368,7 @@ function setupEventListeners() {
 
     const addSaleButton =
         document.getElementById(
-            "addSaleLine"
+            "addSaleItem"
         );
 
     if (addSaleButton) {
@@ -3484,42 +3378,90 @@ function setupEventListeners() {
         );
     }
 
-    const purchaseForm =
+    const saleItems =
         document.getElementById(
-            "purchaseForm"
+            "saleItems"
         );
 
-    if (purchaseForm) {
-        purchaseForm.addEventListener(
-            "submit",
+    if (saleItems) {
+        saleItems.addEventListener(
+            "input",
+            calculateSaleTotal
+        );
+        saleItems.addEventListener(
+            "change",
+            calculateSaleTotal
+        );
+        saleItems.addEventListener(
+            "click",
+            event => {
+                if (!event.target.closest(".remove-sale-line")) {
+                    return;
+                }
+
+                const lines =
+                    saleItems.querySelectorAll(".sale-line");
+
+                if (lines.length > 1) {
+                    event.target.closest(".sale-line").remove();
+                } else {
+                    lines[0].querySelector(".sale-product").value = "";
+                    lines[0].querySelector(".sale-quantity").value = "1";
+                }
+
+                calculateSaleTotal();
+            }
+        );
+    }
+
+    const purchaseButton =
+        document.getElementById(
+            "savePurchase"
+        );
+
+    if (purchaseButton) {
+        purchaseButton.addEventListener(
+            "click",
             addPurchase
         );
     }
 
-    const expenseForm =
+    const expenseButton =
         document.getElementById(
-            "expenseForm"
+            "saveExpense"
         );
 
-    if (expenseForm) {
-        expenseForm.addEventListener(
-            "submit",
+    if (expenseButton) {
+        expenseButton.addEventListener(
+            "click",
             addExpense
         );
     }
 
-    const reconciliationForm =
+    const reconciliationButton =
         document.getElementById(
-            "reconciliationForm"
+            "calculateReconciliation"
         );
 
-    if (
-        reconciliationForm
-    ) {
-        reconciliationForm.addEventListener(
-            "submit",
+    if (reconciliationButton) {
+        reconciliationButton.addEventListener(
+            "click",
             saveReconciliation
         );
+    }
+
+    const reportButton = document.getElementById("loadReport");
+    if (reportButton) {
+        reportButton.addEventListener("click", () => {
+            const reportDate = getValue("reportDate");
+            if (reportDate) {
+                currentDate = reportDate;
+                localStorage.setItem("stockSystemDate", currentDate);
+                setValue("globalDate", currentDate);
+                updateDateDisplay();
+                loadAll();
+            }
+        });
     }
 
     [
@@ -3563,16 +3505,7 @@ document.addEventListener(
             await loadAll();
         }
 
-        if (
-            document.getElementById(
-                "saleLines"
-            ) &&
-            !document.querySelector(
-                ".sale-line"
-            )
-        ) {
-            addSaleLine();
-        }
+        calculateSaleTotal();
 
         console.log(
             "Stock System JavaScript is connected!"
