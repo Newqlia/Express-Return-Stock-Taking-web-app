@@ -87,6 +87,7 @@ db.exec(`
         opening_quantity REAL NOT NULL DEFAULT 0,
         additions REAL NOT NULL DEFAULT 0,
         closing_quantity REAL NOT NULL DEFAULT 0,
+        closing_counted INTEGER NOT NULL DEFAULT 0,
         units_sold REAL NOT NULL DEFAULT 0,
         sales REAL NOT NULL DEFAULT 0,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -132,6 +133,7 @@ db.exec(`
     CREATE TABLE IF NOT EXISTS reconciliations (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         date TEXT NOT NULL,
+        business_id INTEGER,
         total_sales REAL NOT NULL DEFAULT 0,
         expenses REAL NOT NULL DEFAULT 0,
         purchases REAL NOT NULL DEFAULT 0,
@@ -216,6 +218,125 @@ for (const table of businessTables) {
         SET business_id = ?
         WHERE business_id IS NULL
     `).run(defaultBusinessId);
+}
+
+addColumnIfMissing(
+    "daily_stock",
+    "closing_counted",
+    "INTEGER NOT NULL DEFAULT 0"
+);
+
+addColumnIfMissing(
+    "purchases",
+    "supplier",
+    "TEXT DEFAULT ''"
+);
+
+db.prepare(`
+    UPDATE daily_stock
+    SET closing_counted = 1
+    WHERE closing_counted = 0
+    AND (
+        closing_quantity != 0 OR
+        additions != 0 OR
+        units_sold != 0 OR
+        sales != 0
+    )
+`).run();
+
+const reconciliationHasDateOnlyUniqueIndex =
+    db.prepare("PRAGMA index_list(reconciliations)")
+        .all()
+        .some(index => {
+            if (!index.unique) {
+                return false;
+            }
+
+            const escapedIndexName =
+                index.name.replace(/"/g, '""');
+
+            const columns = db
+                .prepare(`PRAGMA index_info("${escapedIndexName}")`)
+                .all();
+
+            return columns.length === 1 && columns[0].name === "date";
+        });
+
+if (reconciliationHasDateOnlyUniqueIndex) {
+
+    const migrateReconciliations = db.transaction(() => {
+        db.exec(`
+            CREATE TABLE reconciliations_business_scoped (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT NOT NULL,
+                business_id INTEGER,
+                total_sales REAL NOT NULL DEFAULT 0,
+                expenses REAL NOT NULL DEFAULT 0,
+                purchases REAL NOT NULL DEFAULT 0,
+                expected_money REAL NOT NULL DEFAULT 0,
+                cash_at_hand REAL NOT NULL DEFAULT 0,
+                till_amount REAL NOT NULL DEFAULT 0,
+                actual_money REAL NOT NULL DEFAULT 0,
+                difference REAL NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'BALANCED',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            );
+
+            INSERT INTO reconciliations_business_scoped (
+                id,
+                date,
+                business_id,
+                total_sales,
+                expenses,
+                purchases,
+                expected_money,
+                cash_at_hand,
+                till_amount,
+                actual_money,
+                difference,
+                status,
+                created_at
+            )
+            SELECT
+                id,
+                date,
+                business_id,
+                total_sales,
+                expenses,
+                purchases,
+                expected_money,
+                cash_at_hand,
+                till_amount,
+                actual_money,
+                difference,
+                status,
+                created_at
+            FROM reconciliations;
+
+            DROP TABLE reconciliations;
+            ALTER TABLE reconciliations_business_scoped
+            RENAME TO reconciliations;
+        `);
+    });
+
+    migrateReconciliations();
+}
+
+try {
+
+    db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_reconciliation_business_date_unique
+        ON reconciliations(business_id, date);
+    `);
+
+} catch (error) {
+
+    console.log(
+        "Reconciliation business/date index was not created:",
+        error.message
+    );
+
 }
 
 /* =========================================================

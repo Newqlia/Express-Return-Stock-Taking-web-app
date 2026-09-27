@@ -1059,6 +1059,50 @@ app.get(
                     date
                 );
 
+            const previousDate = db
+                .prepare("SELECT date(?, '-1 day') AS date")
+                .get(date).date;
+
+            const previousRows = db
+                .prepare(`
+                    SELECT
+                        ds.product_id,
+                        ds.closing_quantity,
+                        p.name,
+                        p.selling_price,
+                        p.purchase_price
+                    FROM daily_stock ds
+                    JOIN products p
+                        ON p.id = ds.product_id
+                    WHERE ds.business_id = ?
+                    AND ds.date = ?
+                    ORDER BY p.name ASC
+                `)
+                .all(
+                    businessId,
+                    previousDate
+                );
+
+            const currentProductIds = new Set(
+                rows.map(row => Number(row.product_id))
+            );
+
+            previousRows.forEach(row => {
+                if (currentProductIds.has(Number(row.product_id))) {
+                    return;
+                }
+
+                rows.push({
+                    ...row,
+                    date,
+                    opening_quantity: row.closing_quantity,
+                    additions: 0,
+                    closing_quantity: row.closing_quantity,
+                    units_sold: 0,
+                    sales: 0
+                });
+            });
+
             res.json({
                 success: true,
                 date,
@@ -1273,21 +1317,44 @@ app.get(
             const rows = db
                 .prepare(`
                     SELECT
-                        ds.*,
+                        ds.id,
+                        p.id AS product_id,
+                        COALESCE(ds.opening_quantity, 0) AS opening_quantity,
+                        COALESCE(ds.additions, 0) AS manual_additions,
+                        COALESCE(ds.additions, 0) +
+                            COALESCE(purchase_totals.quantity, 0) AS additions,
+                        COALESCE(purchase_totals.quantity, 0) AS purchase_additions,
+                        COALESCE(ds.closing_quantity, 0) AS closing_quantity,
+                        COALESCE(ds.closing_counted, 0) AS closing_counted,
+                        COALESCE(ds.units_sold, 0) AS units_sold,
+                        COALESCE(ds.sales, 0) AS sales,
                         p.name,
                         p.selling_price,
                         p.purchase_price
-                    FROM daily_stock ds
-                    JOIN products p
-                        ON p.id = ds.product_id
-                    WHERE ds.business_id = ?
-                    AND ds.date = ?
+                    FROM products p
+                    LEFT JOIN daily_stock ds
+                        ON ds.product_id = p.id
+                        AND ds.business_id = p.business_id
+                        AND ds.date = ?
+                    LEFT JOIN (
+                        SELECT
+                            product_id,
+                            SUM(quantity) AS quantity
+                        FROM purchases
+                        WHERE business_id = ?
+                        AND date = ?
+                        GROUP BY product_id
+                    ) purchase_totals
+                        ON purchase_totals.product_id = p.id
+                    WHERE p.business_id = ?
                     AND p.active = 1
                     ORDER BY p.name ASC
                 `)
                 .all(
+                    date,
                     businessId,
-                    date
+                    date,
+                    businessId,
                 );
 
             res.json({
@@ -1403,6 +1470,36 @@ app.post(
 
             }
 
+            const purchaseQuantity = Number(
+                db.prepare(`
+                    SELECT COALESCE(SUM(quantity), 0) AS quantity
+                    FROM purchases
+                    WHERE business_id = ?
+                    AND date = ?
+                    AND product_id = ?
+                `)
+                .get(
+                    businessId,
+                    date,
+                    productId
+                ).quantity || 0
+            );
+
+            if (added + 0.000001 < purchaseQuantity) {
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Additions cannot be less than the quantity automatically added from purchases."
+                });
+
+            }
+
+            const manualAdditions = Math.max(
+                0,
+                added - purchaseQuantity
+            );
+
             const unitsSold =
                 opening +
                 added -
@@ -1444,13 +1541,14 @@ app.post(
                         opening_quantity = ?,
                         additions = ?,
                         closing_quantity = ?,
+                        closing_counted = 1,
                         units_sold = ?,
                         sales = ?
                     WHERE id = ?
                 `)
                 .run(
                     opening,
-                    added,
+                    manualAdditions,
                     closing,
                     unitsSold,
                     sales,
@@ -1468,17 +1566,18 @@ app.post(
                         opening_quantity,
                         additions,
                         closing_quantity,
+                        closing_counted,
                         units_sold,
                         sales
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
                 `)
                 .run(
                     businessId,
                     date,
                     productId,
                     opening,
-                    added,
+                    manualAdditions,
                     closing,
                     unitsSold,
                     sales
@@ -2240,18 +2339,22 @@ app.delete(
 
             }
 
-            const result = db
+            const purchase = db
                 .prepare(`
-                    DELETE FROM purchases
+                    SELECT
+                        id,
+                        date,
+                        product_id
+                    FROM purchases
                     WHERE id = ?
                     AND business_id = ?
                 `)
-                .run(
+                .get(
                     req.params.id,
                     businessId
                 );
 
-            if (!result.changes) {
+            if (!purchase) {
 
                 return res.status(404).json({
                     success: false,
@@ -2260,6 +2363,66 @@ app.delete(
                 });
 
             }
+
+            const stock = db
+                .prepare(`
+                    SELECT
+                        opening_quantity,
+                        additions,
+                        closing_quantity,
+                        closing_counted
+                    FROM daily_stock
+                    WHERE business_id = ?
+                    AND date = ?
+                    AND product_id = ?
+                `)
+                .get(
+                    businessId,
+                    purchase.date,
+                    purchase.product_id
+                );
+
+            if (stock?.closing_counted) {
+                const remainingPurchases = Number(
+                    db.prepare(`
+                        SELECT COALESCE(SUM(quantity), 0) AS quantity
+                        FROM purchases
+                        WHERE business_id = ?
+                        AND date = ?
+                        AND product_id = ?
+                        AND id != ?
+                    `)
+                    .get(
+                        businessId,
+                        purchase.date,
+                        purchase.product_id,
+                        purchase.id
+                    ).quantity || 0
+                );
+
+                const available =
+                    Number(stock.opening_quantity || 0) +
+                    Number(stock.additions || 0) +
+                    remainingPurchases;
+
+                if (Number(stock.closing_quantity) > available + 0.000001) {
+                    return res.status(409).json({
+                        success: false,
+                        message:
+                            "This purchase cannot be deleted because the saved closing stock depends on it. Update the stock count first."
+                    });
+                }
+            }
+
+            db.prepare(`
+                DELETE FROM purchases
+                WHERE id = ?
+                AND business_id = ?
+            `)
+            .run(
+                purchase.id,
+                businessId
+            );
 
             res.json({
                 success: true,
@@ -3031,30 +3194,43 @@ app.get(
                             p.selling_price,
                             p.purchase_price,
 
+                            CASE
+                                WHEN ds.closing_counted = 1 THEN 1
+                                ELSE 0
+                            END AS stock_counted,
+
+                            COALESCE(ds.additions, 0) +
+                                COALESCE(purchase_totals.quantity, 0) AS additions,
+
                             COALESCE(
                                 ds.opening_quantity,
                                 0
                             ) AS opening_quantity,
 
                             COALESCE(
-                                ds.additions,
-                                0
-                            ) AS additions,
-
-                            COALESCE(
                                 ds.closing_quantity,
                                 0
                             ) AS closing_quantity,
 
-                            COALESCE(
-                                ds.units_sold,
-                                0
-                            ) AS units_sold,
+                            CASE
+                                WHEN ds.closing_counted = 1 THEN
+                                    COALESCE(ds.opening_quantity, 0) +
+                                    COALESCE(ds.additions, 0) +
+                                    COALESCE(purchase_totals.quantity, 0) -
+                                    COALESCE(ds.closing_quantity, 0)
+                                ELSE 0
+                            END AS units_sold,
 
-                            COALESCE(
-                                ds.sales,
-                                0
-                            ) AS sales
+                            CASE
+                                WHEN ds.closing_counted = 1 THEN
+                                    (
+                                        COALESCE(ds.opening_quantity, 0) +
+                                        COALESCE(ds.additions, 0) +
+                                        COALESCE(purchase_totals.quantity, 0) -
+                                        COALESCE(ds.closing_quantity, 0)
+                                    ) * p.selling_price
+                                ELSE 0
+                            END AS sales
 
                         FROM products p
 
@@ -3063,12 +3239,25 @@ app.get(
                             AND ds.business_id = p.business_id
                             AND ds.date = ?
 
+                        LEFT JOIN (
+                            SELECT
+                                product_id,
+                                SUM(quantity) AS quantity
+                            FROM purchases
+                            WHERE business_id = ?
+                            AND date = ?
+                            GROUP BY product_id
+                        ) purchase_totals
+                            ON purchase_totals.product_id = p.id
+
                         WHERE p.business_id = ?
                         AND p.active = 1
 
                         ORDER BY p.name ASC
                     `)
                     .all(
+                        date,
+                        businessId,
                         date,
                         businessId
                     );
@@ -3167,8 +3356,9 @@ app.get(
                         );
 
                     const variance =
-                        stockSold -
-                        recordedUnits;
+                        Number(product.stock_counted) === 1
+                            ? stockSold - recordedUnits
+                            : null;
 
                     const productProfit =
                         receiptAmount -
@@ -3194,8 +3384,9 @@ app.get(
                     profit +=
                         productProfit;
 
-                    stockVariance +=
-                        variance;
+                    if (variance !== null) {
+                        stockVariance += variance;
+                    }
 
                     return {
                         ...product,
@@ -3214,6 +3405,9 @@ app.get(
                             Number(
                                 product.closing_quantity || 0
                             ),
+
+                        stock_counted:
+                            Number(product.stock_counted) === 1,
 
                         units_sold:
                             stockSold,
@@ -3265,6 +3459,392 @@ app.get(
 
             console.error(
                 "DAILY REPORT:",
+                error
+            );
+
+            res.status(500).json({
+                success: false,
+                message: error.message
+            });
+
+        }
+
+    }
+);
+
+/* =========================================================
+   MONTHLY BUSINESS REPORT
+========================================================= */
+
+app.get(
+    "/api/reports/monthly",
+    (req, res) => {
+
+        try {
+
+            const businessId =
+                getBusinessId(req);
+
+            const month =
+                String(req.query.month || "");
+
+            if (
+                !businessExists(businessId)
+            ) {
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Valid business_id is required."
+                });
+
+            }
+
+            if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Month must use YYYY-MM format."
+                });
+
+            }
+
+            const monthStart = `${month}-01`;
+            const monthEnd = db
+                .prepare("SELECT date(?, '+1 month') AS date")
+                .get(monthStart).date;
+
+            const rows = db
+                .prepare(`
+                    WITH activity_dates AS (
+                        SELECT date FROM sales
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+
+                        UNION
+
+                        SELECT date FROM daily_stock
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+
+                        UNION
+
+                        SELECT date FROM purchases
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+
+                        UNION
+
+                        SELECT date FROM expenses
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+
+                        UNION
+
+                        SELECT date FROM reconciliations
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+                    ),
+                    receipt_totals AS (
+                        SELECT
+                            date,
+                            SUM(total_amount) AS receipt_sales,
+                            COUNT(*) AS receipt_count
+                        FROM sales
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+                        GROUP BY date
+                    ),
+                    receipt_items AS (
+                        SELECT
+                            s.date,
+                            SUM(si.quantity) AS receipt_units,
+                            SUM(
+                                si.quantity * si.purchase_price
+                            ) AS cost_of_goods
+                        FROM sales s
+                        JOIN sale_items si
+                            ON si.sale_id = s.id
+                        WHERE s.business_id = @businessId
+                        AND s.date >= @monthStart AND s.date < @monthEnd
+                        GROUP BY s.date
+                    ),
+                    stock_totals AS (
+                        SELECT
+                            ds.date,
+                            SUM(
+                                CASE WHEN ds.closing_counted = 1
+                                    THEN COALESCE(ds.opening_quantity, 0) +
+                                        COALESCE(ds.additions, 0) +
+                                        COALESCE((
+                                            SELECT SUM(pu.quantity)
+                                            FROM purchases pu
+                                            WHERE pu.business_id = ds.business_id
+                                            AND pu.date = ds.date
+                                            AND pu.product_id = ds.product_id
+                                        ), 0) -
+                                        COALESCE(ds.closing_quantity, 0)
+                                    ELSE 0
+                                END
+                            ) AS physical_units,
+                            SUM(
+                                CASE WHEN ds.closing_counted = 1
+                                    THEN 1
+                                    ELSE 0
+                                END
+                            ) AS stock_records,
+                            COUNT(DISTINCT CASE WHEN ds.closing_counted = 1
+                                THEN ds.product_id
+                            END) AS products_counted
+                        FROM daily_stock ds
+                        WHERE ds.business_id = @businessId
+                        AND ds.date >= @monthStart AND ds.date < @monthEnd
+                        GROUP BY ds.date
+                    ),
+                    purchase_totals AS (
+                        SELECT
+                            date,
+                            SUM(amount) AS purchases,
+                            SUM(quantity) AS purchase_units
+                        FROM purchases
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+                        GROUP BY date
+                    ),
+                    expense_totals AS (
+                        SELECT
+                            date,
+                            SUM(amount) AS expenses
+                        FROM expenses
+                        WHERE business_id = @businessId
+                        AND date >= @monthStart AND date < @monthEnd
+                        GROUP BY date
+                    ),
+                    latest_reconciliations AS (
+                        SELECT r.*
+                        FROM reconciliations r
+                        JOIN (
+                            SELECT date, MAX(id) AS id
+                            FROM reconciliations
+                            WHERE business_id = @businessId
+                            AND date >= @monthStart AND date < @monthEnd
+                            GROUP BY date
+                        ) latest
+                            ON latest.id = r.id
+                    )
+                    SELECT
+                        activity_dates.date,
+                        COALESCE(rt.receipt_sales, 0) AS receipt_sales,
+                        COALESCE(rt.receipt_count, 0) AS receipt_count,
+                        COALESCE(ri.receipt_units, 0) AS receipt_units,
+                        COALESCE(ri.cost_of_goods, 0) AS cost_of_goods,
+                        COALESCE(st.physical_units, 0) AS physical_units,
+                        COALESCE(st.stock_records, 0) AS stock_records,
+                        COALESCE(st.products_counted, 0) AS products_counted,
+                        (
+                            SELECT COUNT(*)
+                            FROM products p
+                            WHERE p.business_id = @businessId
+                            AND p.active = 1
+                            AND date(p.created_at) <= activity_dates.date
+                        ) AS active_products,
+                        COALESCE(pt.purchases, 0) AS purchases,
+                        COALESCE(pt.purchase_units, 0) AS purchase_units,
+                        COALESCE(et.expenses, 0) AS expenses,
+                        CASE
+                            WHEN lr.id IS NULL THEN 'NOT RECONCILED'
+                            WHEN (
+                                COALESCE(lr.cash_at_hand, 0) +
+                                COALESCE(lr.till_amount, 0)
+                            ) < (
+                                COALESCE(rt.receipt_sales, 0) -
+                                COALESCE(pt.purchases, 0) -
+                                COALESCE(et.expenses, 0)
+                            ) THEN 'SHORTAGE'
+                            WHEN (
+                                COALESCE(lr.cash_at_hand, 0) +
+                                COALESCE(lr.till_amount, 0)
+                            ) > (
+                                COALESCE(rt.receipt_sales, 0) -
+                                COALESCE(pt.purchases, 0) -
+                                COALESCE(et.expenses, 0)
+                            ) THEN 'SURPLUS'
+                            ELSE 'BALANCED'
+                        END AS reconciliation_status,
+                        COALESCE(lr.cash_at_hand, 0) +
+                            COALESCE(lr.till_amount, 0) AS actual_money,
+                        COALESCE(rt.receipt_sales, 0) -
+                            COALESCE(pt.purchases, 0) -
+                            COALESCE(et.expenses, 0) AS expected_money,
+                        (
+                            COALESCE(lr.cash_at_hand, 0) +
+                            COALESCE(lr.till_amount, 0)
+                        ) - (
+                            COALESCE(rt.receipt_sales, 0) -
+                            COALESCE(pt.purchases, 0) -
+                            COALESCE(et.expenses, 0)
+                        ) AS reconciliation_difference
+                    FROM activity_dates
+                    LEFT JOIN receipt_totals rt
+                        ON rt.date = activity_dates.date
+                    LEFT JOIN receipt_items ri
+                        ON ri.date = activity_dates.date
+                    LEFT JOIN stock_totals st
+                        ON st.date = activity_dates.date
+                    LEFT JOIN purchase_totals pt
+                        ON pt.date = activity_dates.date
+                    LEFT JOIN expense_totals et
+                        ON et.date = activity_dates.date
+                    LEFT JOIN latest_reconciliations lr
+                        ON lr.date = activity_dates.date
+                    ORDER BY activity_dates.date ASC
+                `)
+                .all({
+                    businessId,
+                    monthStart,
+                    monthEnd
+                });
+
+            const days = rows.map(row => {
+                const productsCounted = Number(row.products_counted || 0);
+                const activeProducts = Number(row.active_products || 0);
+                const stockCounted =
+                    activeProducts > 0 && productsCounted >= activeProducts;
+                const physicalUnits = Number(row.physical_units || 0);
+                const receiptUnits = Number(row.receipt_units || 0);
+
+                return {
+                    date: row.date,
+                    receipt_sales: Number(row.receipt_sales || 0),
+                    receipt_count: Number(row.receipt_count || 0),
+                    receipt_units: receiptUnits,
+                    cost_of_goods: Number(row.cost_of_goods || 0),
+                    physical_units: physicalUnits,
+                    stock_records: Number(row.stock_records || 0),
+                    products_counted: productsCounted,
+                    active_products: activeProducts,
+                    stock_counted: stockCounted,
+                    stock_variance: stockCounted
+                        ? physicalUnits - receiptUnits
+                        : null,
+                    purchases: Number(row.purchases || 0),
+                    purchase_units: Number(row.purchase_units || 0),
+                    expenses: Number(row.expenses || 0),
+                    reconciliation_status:
+                        row.reconciliation_status || "NOT RECONCILED",
+                    actual_money: Number(row.actual_money || 0),
+                    expected_money: Number(row.expected_money || 0),
+                    reconciliation_difference:
+                        Number(row.reconciliation_difference || 0)
+                };
+            });
+
+            const totals = days.reduce((result, day) => {
+                result.receiptSales += day.receipt_sales;
+                result.receiptCount += day.receipt_count;
+                result.receiptUnits += day.receipt_units;
+                result.costOfGoods += day.cost_of_goods;
+                result.purchases += day.purchases;
+                result.purchaseUnits += day.purchase_units;
+                result.expenses += day.expenses;
+
+                if (day.stock_counted) {
+                    result.physicalUnits += day.physical_units;
+                    result.stockCountDays += 1;
+                    result.stockVariance += day.stock_variance;
+
+                    if (Math.abs(day.stock_variance) > 0.000001) {
+                        result.stockVarianceDays += 1;
+                    }
+                } else if (day.stock_records > 0) {
+                    result.partialCountDays += 1;
+                }
+
+                if (day.reconciliation_status === "BALANCED") {
+                    result.balancedDays += 1;
+                } else if (day.reconciliation_status === "SHORTAGE") {
+                    result.shortageDays += 1;
+                } else if (day.reconciliation_status === "SURPLUS") {
+                    result.surplusDays += 1;
+                }
+
+                if (day.reconciliation_status !== "NOT RECONCILED") {
+                    result.reconciledDays += 1;
+                    result.actualMoney += day.actual_money;
+                    result.expectedMoney += day.expected_money;
+                    result.reconciliationDifference +=
+                        day.reconciliation_difference;
+                }
+
+                return result;
+            }, {
+                receiptSales: 0,
+                receiptCount: 0,
+                receiptUnits: 0,
+                costOfGoods: 0,
+                physicalUnits: 0,
+                purchases: 0,
+                purchaseUnits: 0,
+                expenses: 0,
+                stockCountDays: 0,
+                partialCountDays: 0,
+                stockVariance: 0,
+                stockVarianceDays: 0,
+                reconciledDays: 0,
+                balancedDays: 0,
+                shortageDays: 0,
+                surplusDays: 0,
+                actualMoney: 0,
+                expectedMoney: 0,
+                reconciliationDifference: 0
+            });
+
+            totals.grossProfit =
+                totals.receiptSales - totals.costOfGoods;
+
+            totals.netCashMovement =
+                totals.receiptSales - totals.purchases - totals.expenses;
+
+            totals.activityDays = days.length;
+
+            totals.unreconciledDays =
+                totals.activityDays - totals.reconciledDays;
+
+            totals.uncountedDays =
+                totals.activityDays - totals.stockCountDays;
+
+            let businessStatus = "BALANCED";
+
+            if (!days.length) {
+                businessStatus = "NO ACTIVITY";
+            } else if (
+                totals.shortageDays > 0 ||
+                totals.stockVarianceDays > 0
+            ) {
+                businessStatus = "NEEDS REVIEW";
+            } else if (
+                totals.unreconciledDays > 0 ||
+                totals.uncountedDays > 0
+            ) {
+                businessStatus = "INCOMPLETE";
+            } else if (totals.surplusDays > 0) {
+                businessStatus = "SURPLUS";
+            }
+
+            res.json({
+                success: true,
+                business_id: businessId,
+                month,
+                business_status: businessStatus,
+                totals,
+                days
+            });
+
+        } catch (error) {
+
+            console.error(
+                "MONTHLY BUSINESS REPORT:",
                 error
             );
 

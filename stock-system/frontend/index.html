@@ -11,6 +11,10 @@
 
     <title>Express Returns | Stock & Finance</title>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
     <link
         rel="stylesheet"
         href="style.css"
@@ -109,6 +113,13 @@ SIDEBAR
             Reports
         </button>
 
+        <button
+            class="nav-item"
+            data-section="user-guide"
+        >
+            Guide
+        </button>
+
     </nav>
 
 
@@ -199,6 +210,14 @@ MAIN APPLICATION
             >
 
         </div>
+
+        <button
+            type="button"
+            id="refreshDataButton"
+            class="secondary-button refresh-data-button"
+        >
+            Refresh Data
+        </button>
 
     </header>
 
@@ -321,7 +340,7 @@ MAIN APPLICATION
                     </span>
 
                     <div>
-                        Additions
+                        Additions (incl. purchases)
                     </div>
 
                     <span>
@@ -515,7 +534,7 @@ MAIN APPLICATION
                             <tr>
 
                                 <th>
-                                    #
+                                    No.
                                 </th>
 
                                 <th>
@@ -715,7 +734,7 @@ MAIN APPLICATION
                     </span>
 
                     <div>
-                        Additions
+                        Additions (incl. purchases)
                     </div>
 
                     <span>
@@ -747,6 +766,11 @@ MAIN APPLICATION
 
                 <div class="formula-note">
 
+                    Recorded purchases for the selected date are included automatically in Additions.
+                    Enter only other stock additions in the Daily Stock field.
+
+                    <br><br>
+
                     <strong>
                         Physical Sold
                     </strong>
@@ -769,6 +793,14 @@ MAIN APPLICATION
 
                     = Physical Sold - Receipt Sold
 
+                    <br><br>
+
+                    <strong>
+                        Stock Value (at Cost)
+                    </strong>
+
+                    = Closing Stock x Purchase Price
+
                 </div>
 
 
@@ -789,7 +821,7 @@ MAIN APPLICATION
                                 </th>
 
                                 <th>
-                                    Additions
+                                    Additions (incl. purchases)
                                 </th>
 
                                 <th>
@@ -821,7 +853,11 @@ MAIN APPLICATION
                                 </th>
 
                                 <th>
-                                    Action
+                                    Stock Value (at Cost)
+                                </th>
+
+                                <th>
+                                    Save Stock
                                 </th>
 
                             </tr>
@@ -1090,6 +1126,8 @@ MAIN APPLICATION
                 </h3>
 
 
+                <form id="purchaseForm">
+
                 <div class="form-grid">
 
 
@@ -1099,7 +1137,7 @@ MAIN APPLICATION
                             Product
                         </label>
 
-                        <select id="purchaseProduct">
+                        <select id="purchaseProduct" required>
 
                             <option value="">
                                 Select product
@@ -1121,7 +1159,9 @@ MAIN APPLICATION
                             id="purchaseQuantity"
                             min="0.01"
                             step="0.01"
-                            placeholder="Quantity"
+                            placeholder="Enter quantity"
+                            inputmode="decimal"
+                            required
                         >
 
                     </div>
@@ -1138,7 +1178,24 @@ MAIN APPLICATION
                             id="purchaseAmount"
                             min="0"
                             step="0.01"
-                            placeholder="KES"
+                            placeholder="Enter amount paid"
+                            inputmode="decimal"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="form-group">
+
+                        <label for="purchaseSupplier">
+                            Supplier <span class="muted-text">(optional)</span>
+                        </label>
+
+                        <input
+                            type="text"
+                            id="purchaseSupplier"
+                            placeholder="Supplier name"
+                            autocomplete="organization"
                         >
 
                     </div>
@@ -1147,7 +1204,7 @@ MAIN APPLICATION
 
 
                 <button
-                    type="button"
+                    type="submit"
                     id="savePurchase"
                     class="primary-button"
                 >
@@ -1159,6 +1216,8 @@ MAIN APPLICATION
                     id="purchaseMessage"
                     class="form-message"
                 ></p>
+
+                </form>
 
             </div>
 
@@ -1267,6 +1326,7 @@ MAIN APPLICATION
                         >
 
                     </div>
+
 
                 </div>
 
@@ -1429,61 +1489,8 @@ MAIN APPLICATION
 
                     </div>
 
-                </div>
 
-
-                <div class="form-grid">
-
-
-                    <div class="form-group">
-
-                        <label for="cashAtHand">
-                            Cash At Hand
-                        </label>
-
-                        <input
-                            type="number"
-                            id="cashAtHand"
-                            min="0"
-                            step="0.01"
-                            placeholder="KES"
-                        >
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label for="tillAmount">
-                            Safaricom Till
-                        </label>
-
-                        <input
-                            type="number"
-                            id="tillAmount"
-                            min="0"
-                            step="0.01"
-                            placeholder="KES"
-                        >
-
-                    </div>
-
-                </div>
-
-
-                <button
-                    type="button"
-                    id="calculateReconciliation"
-                    class="primary-button"
-                >
-                    Calculate Reconciliation
-                </button>
-
-
-                <div class="reconciliation-results">
-
-
-                    <div>
+                    <div class="money-card expected-money-card">
 
                         <span>
                             Expected Money
@@ -1501,6 +1508,60 @@ MAIN APPLICATION
 
                     </div>
 
+                </div>
+
+
+                <div class="form-grid">
+
+
+                    <div class="form-group">
+
+                        <label for="cashAtHand">
+                            Cash At Hand
+                        </label>
+
+                        <input
+                            type="number"
+                            id="cashAtHand"
+                            min="0"
+                            step="0.01"
+                            placeholder="Enter cash counted"
+                            inputmode="decimal"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="tillAmount">
+                            Safaricom Till
+                        </label>
+
+                        <input
+                            type="number"
+                            id="tillAmount"
+                            min="0"
+                            step="0.01"
+                            placeholder="Enter till balance"
+                            inputmode="decimal"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <button
+                    type="button"
+                    id="calculateReconciliation"
+                    class="primary-button"
+                >
+                    Save Reconciliation
+                </button>
+
+
+                <div class="reconciliation-results">
 
                     <div>
 
@@ -1605,13 +1666,29 @@ MAIN APPLICATION
                 </h2>
 
                 <p>
-                    Review the selected day's complete business activity.
+                    Review daily operations and monthly business performance.
                 </p>
 
             </div>
 
 
             <div class="card">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h3>
+                            Daily Report
+                        </h3>
+
+                        <p>
+                            Compare physical stock counts with receipt sales for one day.
+                        </p>
+
+                    </div>
+
+                </div>
 
 
                 <div class="date-row">
@@ -1713,6 +1790,15 @@ MAIN APPLICATION
 
                     </div>
 
+                    <div>
+                        <span>
+                            Products Counted
+                        </span>
+                        <strong id="dailyReportCount">
+                            0 / 0
+                        </strong>
+                    </div>
+
                 </div>
 
 
@@ -1776,6 +1862,310 @@ MAIN APPLICATION
                     </table>
 
                 </div>
+
+            </div>
+
+
+            <div class="card monthly-report-card">
+
+                <div class="section-header monthly-report-heading">
+
+                    <div>
+
+                        <h3>
+                            Monthly Business Summary
+                        </h3>
+
+                        <p>
+                            Review sales, profit, stock control and reconciliation for a full month.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="monthly-report-controls">
+
+                    <div class="form-group">
+
+                        <label for="reportMonth">
+                            Report Month
+                        </label>
+
+                        <input
+                            type="month"
+                            id="reportMonth"
+                        >
+
+                    </div>
+
+                    <button
+                        type="button"
+                        id="loadMonthlyReport"
+                        class="secondary-button"
+                    >
+                        Load Monthly Report
+                    </button>
+
+                </div>
+
+
+                <div class="monthly-status-strip" aria-live="polite">
+
+                    <div>
+
+                        <span class="monthly-status-label">
+                            Business status
+                        </span>
+
+                        <strong
+                            id="monthlyBusinessStatus"
+                            class="status-badge no-activity"
+                        >
+                            Awaiting report
+                        </strong>
+
+                    </div>
+
+                    <p id="monthlyBusinessStatusDetail">
+                        Select a month to review its activity.
+                    </p>
+
+                </div>
+
+
+                <div class="report-summary monthly-summary-grid">
+
+                    <div>
+                        <span>Receipt Sales</span>
+                        <strong>KES <span id="monthlyReceiptSales">0.00</span></strong>
+                    </div>
+
+                    <div>
+                        <span>Gross Profit</span>
+                        <strong>KES <span id="monthlyGrossProfit">0.00</span></strong>
+                    </div>
+
+                    <div>
+                        <span>Expenses</span>
+                        <strong>KES <span id="monthlyExpenses">0.00</span></strong>
+                    </div>
+
+                    <div>
+                        <span>Net Cash Movement</span>
+                        <strong>KES <span id="monthlyNetCashMovement">0.00</span></strong>
+                    </div>
+
+                    <div>
+                        <span>Physical Units Sold</span>
+                        <strong id="monthlyPhysicalUnits">0</strong>
+                    </div>
+
+                    <div>
+                        <span>Receipt Units Sold</span>
+                        <strong id="monthlyReceiptUnits">0</strong>
+                    </div>
+
+                    <div>
+                        <span>Products Counted (of expected)</span>
+                        <strong id="monthlyProductsCounted">0 / 0</strong>
+                    </div>
+
+                    <div>
+                        <span>Counted Stock Variance</span>
+                        <strong id="monthlyStockVariance">0</strong>
+                    </div>
+
+                    <div>
+                        <span>Reconciled Days</span>
+                        <strong id="monthlyReconciledDays">0 / 0</strong>
+                    </div>
+
+                    <div>
+                        <span>Reconciliation Difference</span>
+                        <strong>KES <span id="monthlyReconciliationDifference">0.00</span></strong>
+                    </div>
+
+                    <div>
+                        <span>Expected Money</span>
+                        <strong>KES <span id="monthlyExpectedMoney">0.00</span></strong>
+                    </div>
+
+                    <div>
+                        <span>Actual Money Counted</span>
+                        <strong>KES <span id="monthlyActualMoney">0.00</span></strong>
+                    </div>
+
+                </div>
+
+
+                <div class="monthly-activity-heading">
+                    <h4>Activity by Day</h4>
+                    <p>Variance is shown only when every active product for that day was counted.</p>
+                </div>
+
+                <p class="monthly-calculation-note">
+                    Net cash movement and reconciliation account for recorded purchases and expenses.
+                </p>
+
+
+                <div class="table-container">
+
+                    <table class="monthly-report-table">
+
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Receipt Sales</th>
+                                <th>Receipt Units</th>
+                                <th>Products Counted</th>
+                                <th>Physical Sold</th>
+                                <th>Stock Variance</th>
+                                <th>Expenses</th>
+                                <th>Reconciliation</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="monthlyReportTableBody">
+                            <tr>
+                                <td colspan="8" class="empty-message">
+                                    Loading monthly report...
+                                </td>
+                            </tr>
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+                <p id="monthlyReportMessage" class="form-message" aria-live="polite"></p>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+        USER GUIDE
+        ================================================== -->
+
+        <section
+            id="user-guide"
+            class="page-section"
+        >
+
+            <div class="page-heading">
+
+                <h2>
+                    Quick Operating Guide
+                </h2>
+
+                <p>
+                    A practical checklist for stock takers, cashiers and business managers.
+                </p>
+
+            </div>
+
+
+            <div class="guide-grid">
+
+                <article class="card guide-card">
+
+                    <span class="guide-step">01</span>
+
+                    <h3>Owner or Manager: Set Up</h3>
+
+                    <ol>
+                        <li>Select the correct business in the top bar. Use <strong>Add Business</strong> to create a separate business workspace.</li>
+                        <li>Add each product once, with its selling price and purchase price.</li>
+                        <li>For the first stock-taking day, enter the physical opening quantity for each product under <strong>Opening Stock</strong>.</li>
+                        <li>Check the selected business date before recording or reviewing activity.</li>
+                    </ol>
+
+                </article>
+
+
+                <article class="card guide-card">
+
+                    <span class="guide-step">02</span>
+
+                    <h3>Stock Taker: Count Stock</h3>
+
+                    <ol>
+                        <li>Confirm the business and date at the top of the app.</li>
+                        <li>Open <strong>Daily Stock</strong>. Check the opening quantity and enter any stock additions for each product.</li>
+                        <li>Count the physical closing stock on the shelf and enter it in <strong>Closing</strong>.</li>
+                        <li>Select <strong>Save Stock</strong> on every product row. A row is counted only after its daily stock has been saved.</li>
+                        <li>Review Physical Sold and Variance. Physical Sold is opening stock plus additions minus closing stock.</li>
+                    </ol>
+
+                </article>
+
+
+                <article class="card guide-card">
+
+                    <span class="guide-step">03</span>
+
+                    <h3>Cashier: Record Sales</h3>
+
+                    <ol>
+                        <li>Open <strong>Sales &amp; Receipts</strong> and select the products and quantities sold.</li>
+                        <li>Choose the payment method and complete the sale to create its receipt.</li>
+                        <li>Record each sale once, on the date it happened. Receipt Sold in reports comes from these saved receipts.</li>
+                        <li>At close, compare receipt units with Physical Sold; investigate any difference rather than changing figures to force a match.</li>
+                    </ol>
+
+                </article>
+
+
+                <article class="card guide-card">
+
+                    <span class="guide-step">04</span>
+
+                    <h3>Expense or Purchase Recorder</h3>
+
+                    <ol>
+                        <li>Record operating costs under <strong>Expenses</strong>, using the correct business date.</li>
+                        <li>Record new stock bought under <strong>Purchases</strong>, including quantity and amount paid.</li>
+                        <li>Purchases and expenses are used when calculating expected reconciliation money. Enter them once and on the correct date.</li>
+                    </ol>
+
+                </article>
+
+
+                <article class="card guide-card">
+
+                    <span class="guide-step">05</span>
+
+                    <h3>Manager or Accountant: Reconcile</h3>
+
+                    <ol>
+                        <li>Confirm sales, purchases and expenses for the business date have been entered before reconciling.</li>
+                        <li>Count the actual cash and till balance, then enter each amount under <strong>Reconciliation</strong>.</li>
+                        <li>Select <strong>Save Reconciliation</strong>. Expected Money is receipt sales minus recorded purchases and expenses.</li>
+                        <li>Actual Money is cash at hand plus till. Difference is actual money minus expected money.</li>
+                        <li><strong>BALANCED</strong> means the figures match. Investigate <strong>SHORTAGE</strong> or <strong>SURPLUS</strong> against receipts and recorded costs.</li>
+                    </ol>
+
+                </article>
+
+
+                <article class="card guide-card">
+
+                    <span class="guide-step">06</span>
+
+                    <h3>Read Daily and Monthly Reports</h3>
+
+                    <ul>
+                        <li><strong>Daily Report</strong> compares physical stock movement with receipt sales for one date.</li>
+                        <li><strong>Monthly Business Summary</strong> groups recorded activity by day and summarizes sales, gross profit, expenses and reconciliation.</li>
+                        <li><strong>Products Counted</strong> shows confirmed closing counts against active products expected for the day or month.</li>
+                        <li><strong>Partial count</strong> means some products were saved but not all. Variance is only reported for days when all active products were counted.</li>
+                        <li><strong>INCOMPLETE</strong> means there are active days without complete stock counts or reconciliations. <strong>NEEDS REVIEW</strong> signals a shortage or counted-stock variance.</li>
+                    </ul>
+
+                </article>
 
             </div>
 

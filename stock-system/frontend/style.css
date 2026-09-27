@@ -25,10 +25,21 @@
 }
 
 body {
-    font-family: Arial, Helvetica, sans-serif;
-    background: var(--bg);
+    font-family: "Inter", sans-serif;
+    background-color: var(--bg);
+    background-image: url("stock-grid.svg");
+    background-repeat: repeat;
+    background-size: 320px 240px;
     color: var(--text);
     min-height: 100vh;
+    line-height: 1.5;
+}
+
+button,
+input,
+select,
+textarea {
+    font-family: inherit;
 }
 
 
@@ -73,11 +84,13 @@ body {
 .brand h1 {
     font-size: 17px;
     line-height: 1.2;
+    font-weight: 700;
 }
 
 .brand p {
     color: #9ca3af;
     font-size: 12px;
+    line-height: 1.4;
     margin-top: 4px;
 }
 
@@ -98,10 +111,13 @@ body {
     background: transparent;
     color: #d1d5db;
     text-align: left;
-    padding: 13px 14px;
-    border-radius: 9px;
+    padding: 12px 14px;
+    border-radius: 7px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+    min-height: 44px;
     transition: 0.2s;
 }
 
@@ -120,14 +136,15 @@ body {
     margin-top: auto;
     padding: 15px 8px;
     color: #9ca3af;
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.6;
 }
 
 .sidebar-footer strong {
     display: block;
     color: white;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 
@@ -165,11 +182,14 @@ body {
 
 .topbar h2 {
     font-size: 22px;
+    font-weight: 700;
+    line-height: 1.25;
 }
 
 .topbar p {
     color: var(--muted);
     font-size: 13px;
+    line-height: 1.45;
     margin-top: 4px;
 }
 
@@ -194,18 +214,22 @@ body {
 }
 
 .business-selector label {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--muted);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .business-selector select {
     min-width: 240px;
-    font-weight: 700;
+    font-weight: 600;
     border-color: #cbd5e1;
 }
 
 .business-control .primary-button {
+    white-space: nowrap;
+}
+
+.refresh-data-button {
     white-space: nowrap;
 }
 
@@ -222,9 +246,9 @@ body {
 }
 
 .date-control label {
-    font-size: 12px;
+    font-size: 13px;
     color: var(--muted);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 
@@ -250,12 +274,61 @@ main {
 
 .page-heading h2 {
     font-size: 26px;
+    font-weight: 800;
+    line-height: 1.2;
     margin-bottom: 7px;
 }
 
 .page-heading p {
     color: var(--muted);
     font-size: 14px;
+    line-height: 1.55;
+}
+
+.guide-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.guide-card {
+    margin-bottom: 0;
+}
+
+.guide-step {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 30px;
+    margin-bottom: 12px;
+    border-radius: 6px;
+    background: #eff6ff;
+    color: var(--primary-dark);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.guide-card h3 {
+    margin-bottom: 12px;
+}
+
+.guide-card ol,
+.guide-card ul {
+    padding-left: 21px;
+    color: #374151;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.guide-card li {
+    padding-left: 3px;
+    margin-bottom: 9px;
+}
+
+.guide-card li:last-child {
+    margin-bottom: 0;
 }
 
 
@@ -266,7 +339,7 @@ main {
 .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 24px;
     margin-bottom: 22px;
     box-shadow: var(--shadow);
@@ -274,6 +347,9 @@ main {
 
 .card h3 {
     margin-bottom: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
 }
 
 .section-header {
@@ -291,6 +367,7 @@ main {
 .section-header p {
     color: var(--muted);
     font-size: 13px;
+    line-height: 1.5;
 }
 
 
@@ -308,8 +385,8 @@ main {
 .summary-card {
     background: white;
     border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 22px;
+    border-radius: 10px;
+    padding: 20px;
     box-shadow: var(--shadow);
 }
 
@@ -317,11 +394,16 @@ main {
     display: block;
     color: var(--muted);
     font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
     margin-bottom: 9px;
 }
 
 .summary-card strong {
     font-size: 24px;
+    font-weight: 700;
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
 }
 
 
@@ -339,7 +421,9 @@ main {
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 22px;
-    font-weight: 700;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.5;
 }
 
 .formula-box span {
@@ -353,7 +437,8 @@ main {
     border-left: 4px solid var(--primary);
     color: #1e40af;
     border-radius: 7px;
-    font-size: 13px;
+    font-size: 14px;
+    line-height: 1.6;
     margin-bottom: 18px;
 }
 
@@ -376,8 +461,9 @@ main {
 }
 
 .form-group label {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.4;
     color: #374151;
 }
 
@@ -389,8 +475,15 @@ select {
     padding: 11px 12px;
     background: white;
     color: var(--text);
-    font-size: 14px;
+    font-size: 15px;
+    line-height: 1.4;
+    min-height: 44px;
     outline: none;
+}
+
+input[type="number"] {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
 input:focus,
@@ -403,14 +496,24 @@ button {
     font-family: inherit;
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .primary-button,
 .secondary-button {
     border: none;
     border-radius: 8px;
     padding: 11px 17px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
+    line-height: 1.3;
+    min-height: 44px;
 }
 
 .primary-button {
@@ -420,6 +523,11 @@ button {
 
 .primary-button:hover {
     background: var(--primary-dark);
+}
+
+.primary-button:disabled {
+    opacity: 0.65;
+    cursor: wait;
 }
 
 .secondary-button {
@@ -438,11 +546,15 @@ button {
     padding: 7px 10px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    min-height: 38px;
 }
 
 .btn-small {
-    padding: 6px 9px;
+    padding: 8px 11px;
+    min-height: 38px;
+    font-size: 12px;
 }
 
 
@@ -464,6 +576,11 @@ button {
     color: var(--danger);
 }
 
+.muted-text {
+    color: var(--muted);
+    font-weight: 400;
+}
+
 
 /* =====================================================
    TABLES
@@ -472,6 +589,7 @@ button {
 .table-container {
     width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 table {
@@ -484,9 +602,9 @@ th {
     background: #f8fafc;
     color: #6b7280;
     text-align: left;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
 }
 
 th,
@@ -496,7 +614,51 @@ td {
 }
 
 td {
-    font-size: 13px;
+    font-size: 14px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+}
+
+#daily-stock table,
+#reports table {
+    min-width: 1050px;
+}
+
+#daily-stock th:nth-child(n + 2):nth-child(-n + 11),
+#daily-stock td:nth-child(n + 2):nth-child(-n + 11),
+#reports th:nth-child(n + 2),
+#reports td:nth-child(n + 2),
+#opening-stock th:nth-child(2),
+#opening-stock td:nth-child(2) {
+    text-align: right;
+}
+
+#daily-stock th:last-child,
+#daily-stock td:last-child {
+    text-align: center;
+}
+
+.daily-units-sold,
+#reportTable td:nth-child(6) {
+    color: #1d4ed8;
+    font-weight: 700;
+}
+
+.daily-receipt-sold,
+#reportTable td:nth-child(7) {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.daily-variance,
+#reportTable td:nth-child(8) {
+    color: #b45309;
+    font-weight: 700;
+}
+
+.daily-sales,
+.daily-stock-value {
+    font-weight: 600;
 }
 
 tbody tr:hover {
@@ -529,8 +691,8 @@ tbody tr:hover {
 }
 
 .date-row label {
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 
@@ -581,6 +743,8 @@ tbody tr:hover {
 
 .sale-total strong {
     font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
 .transaction-row {
@@ -598,12 +762,13 @@ tbody tr:hover {
 
 .transaction-main strong {
     display: block;
+    font-weight: 600;
     margin-bottom: 5px;
 }
 
 .transaction-main span {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .transaction-actions {
@@ -613,7 +778,9 @@ tbody tr:hover {
 }
 
 .money {
-    font-size: 16px;
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
 }
 
 
@@ -623,7 +790,7 @@ tbody tr:hover {
 
 .reconciliation-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 15px;
     margin-bottom: 22px;
 }
@@ -632,18 +799,22 @@ tbody tr:hover {
     background: #f8fafc;
     border: 1px solid var(--border);
     padding: 18px;
-    border-radius: 10px;
+    border-radius: 8px;
 }
 
 .money-card span {
     display: block;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
     margin-bottom: 7px;
 }
 
 .money-card strong {
     font-size: 20px;
+    font-weight: 700;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
 }
 
 .reconciliation-results {
@@ -656,23 +827,37 @@ tbody tr:hover {
 .reconciliation-results > div {
     background: #f8fafc;
     border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 17px;
+    border-radius: 8px;
+    padding: 18px;
 }
 
 .reconciliation-results span {
     display: block;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
     margin-bottom: 7px;
+}
+
+.reconciliation-results strong {
+    font-size: 21px;
+    font-weight: 700;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
 }
 
 .status-badge {
     display: inline-block;
-    padding: 6px 9px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 800;
+    padding: 7px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+}
+
+.reconciliation-results .status-badge {
+    font-size: 12px;
+    font-variant-numeric: normal;
 }
 
 .status-badge.balanced {
@@ -705,19 +890,132 @@ tbody tr:hover {
 .report-summary > div {
     background: #f8fafc;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 17px;
 }
 
 .report-summary span {
     display: block;
     color: var(--muted);
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
     margin-bottom: 7px;
 }
 
 .report-summary strong {
-    font-size: 19px;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.35;
+    font-variant-numeric: tabular-nums;
+}
+
+.monthly-report-heading {
+    min-height: 116px;
+    padding: 8px 0;
+    background-image: url("monthly-trend.svg");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: auto 100%;
+}
+
+.monthly-report-heading > div {
+    max-width: calc(100% - 180px);
+}
+
+.monthly-report-controls {
+    display: grid;
+    grid-template-columns: minmax(180px, 250px) auto;
+    align-items: end;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.monthly-status-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.monthly-status-strip > div {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+}
+
+.monthly-status-label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.monthly-status-strip p {
+    color: #4b5563;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: right;
+}
+
+.monthly-summary-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    margin-bottom: 24px;
+}
+
+.monthly-summary-grid strong {
+    overflow-wrap: anywhere;
+}
+
+.monthly-summary-grid .positive {
+    color: var(--success);
+}
+
+.monthly-summary-grid .negative,
+.monthly-summary-grid .attention {
+    color: var(--danger);
+}
+
+.monthly-summary-grid #monthlyProductsCounted,
+#dailyReportCount {
+    color: var(--primary-dark);
+}
+
+.monthly-calculation-note {
+    margin: -10px 0 16px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.monthly-activity-heading {
+    margin: 4px 0 12px;
+}
+
+.monthly-activity-heading h4 {
+    margin-bottom: 4px;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.monthly-activity-heading p {
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.status-badge.incomplete,
+.status-badge.no-activity {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-badge.no-activity {
+    background: #f3f4f6;
+    color: #4b5563;
 }
 
 
@@ -745,7 +1043,7 @@ tbody tr:hover {
     width: 100%;
     max-width: 650px;
     background: white;
-    border-radius: 16px;
+    border-radius: 10px;
     padding: 25px;
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.18);
     animation: modalIn 0.2s ease;
@@ -773,6 +1071,8 @@ tbody tr:hover {
 
 .modal-header h2 {
     font-size: 21px;
+    font-weight: 700;
+    line-height: 1.3;
     margin-bottom: 6px;
 }
 
@@ -786,8 +1086,8 @@ tbody tr:hover {
     border: none;
     background: #f3f4f6;
     color: #374151;
-    width: 34px;
-    height: 34px;
+    width: 40px;
+    height: 40px;
     border-radius: 8px;
     font-size: 23px;
     line-height: 1;
@@ -837,7 +1137,7 @@ tbody tr:hover {
         padding: 8px;
         background: white;
         color: black;
-        font-family: monospace;
+        font-family: "Inter", sans-serif;
         font-size: 12px;
     }
 
@@ -915,12 +1215,20 @@ tbody tr:hover {
         grid-template-columns: repeat(2, 1fr);
     }
 
+    .monthly-summary-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .form-grid {
         grid-template-columns: repeat(2, 1fr);
     }
 
     .reconciliation-results {
         grid-template-columns: repeat(2, 1fr);
+    }
+
+    .reconciliation-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
@@ -931,11 +1239,13 @@ tbody tr:hover {
         position: relative;
         width: 100%;
         min-height: auto;
+        padding: 18px 16px;
     }
 
     .navigation {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 7px;
     }
 
     .sidebar-footer {
@@ -951,6 +1261,7 @@ tbody tr:hover {
         flex-direction: column;
         align-items: stretch;
         gap: 15px;
+        padding: 16px 20px;
     }
 
     .topbar-title {
@@ -970,6 +1281,10 @@ tbody tr:hover {
         min-width: 0;
     }
 
+    .refresh-data-button {
+        width: 100%;
+    }
+
     .date-control {
         width: 100%;
         flex-direction: column;
@@ -977,15 +1292,33 @@ tbody tr:hover {
     }
 
     main {
-        padding: 18px;
+        padding: 18px 16px;
     }
 
     .form-grid,
     .summary-grid,
     .reconciliation-grid,
     .reconciliation-results,
-    .report-summary {
+    .report-summary,
+    .guide-grid {
         grid-template-columns: 1fr;
+    }
+
+    .monthly-summary-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .monthly-report-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .monthly-status-strip {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .monthly-status-strip p {
+        text-align: left;
     }
 
     .sale-line {
@@ -1001,11 +1334,38 @@ tbody tr:hover {
 @media (max-width: 500px) {
 
     .navigation {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .nav-item {
+        padding: 10px;
+        font-size: 13px;
+        text-align: left;
     }
 
     .card {
         padding: 16px;
+    }
+
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .date-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .date-row > div,
+    .date-row input {
+        width: 100%;
+    }
+
+    main {
+        padding: 16px 12px;
     }
 
     .page-heading h2 {
@@ -1018,7 +1378,19 @@ tbody tr:hover {
 
     .modal-content {
         padding: 18px;
-        border-radius: 12px;
+        border-radius: 10px;
+    }
+
+    .monthly-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .monthly-report-heading {
+        background-size: auto 70%;
+    }
+
+    .monthly-report-heading > div {
+        max-width: calc(100% - 120px);
     }
 
     .modal-header {

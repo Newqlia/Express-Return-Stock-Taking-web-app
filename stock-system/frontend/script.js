@@ -32,6 +32,7 @@ let purchases = [];
 let expenses = [];
 
 let saleLines = [];
+let reconciliationExpectedMoney = 0;
 
 /* =====================================================
    API
@@ -709,13 +710,17 @@ function renderProducts() {
                     No products found.
                 </td>
             </tr>
+                <input
+                    type="number"
+                <input
+                    type="number"
             `;
 
         return;
     }
 
     products.forEach(
-        product => {
+        (product, index) => {
             const tr =
                 document.createElement(
                     "tr"
@@ -723,7 +728,7 @@ function renderProducts() {
 
             tr.innerHTML =
                 `
-                <td>${product.id}</td>
+                <td>${index + 1}</td>
 
                 <td>
                     ${escapeHtml(
@@ -1217,7 +1222,7 @@ async function loadDailyStock() {
 
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="11" class="empty-message">
+                    <td colspan="12" class="empty-message">
                         Failed to load daily stock:
                         ${escapeHtml(error.message)}
                     </td>
@@ -1253,7 +1258,7 @@ function renderDailyStock(stock) {
 
         tbody.innerHTML = `
             <tr>
-                <td colspan="11" class="empty-message">
+                <td colspan="12" class="empty-message">
                     No products found.
                 </td>
             </tr>
@@ -1278,7 +1283,7 @@ function renderDailyStock(stock) {
         let closing = 0;
 
 
-        if (existing) {
+        if (existing?.id) {
 
             opening =
                 Number(
@@ -1290,10 +1295,9 @@ function renderDailyStock(stock) {
                     existing.additions || 0
                 );
 
-            closing =
-                Number(
-                    existing.closing_quantity || 0
-                );
+            closing = existing.closing_counted
+                ? Number(existing.closing_quantity || 0)
+                : opening + additions;
 
         } else {
 
@@ -1312,6 +1316,12 @@ function renderDailyStock(stock) {
                 Number(
                     openingRecord || 0
                 );
+
+            additions = Number(
+                existing?.purchase_additions || 0
+            );
+
+            closing = opening + additions;
 
         }
 
@@ -1338,6 +1348,9 @@ function renderDailyStock(stock) {
                 product.selling_price || 0
             );
 
+        const stockValue =
+            closing * Number(product.purchase_price || 0);
+
 
         const tr =
             document.createElement("tr");
@@ -1347,11 +1360,6 @@ function renderDailyStock(stock) {
 
             <td>
                 ${escapeHtml(product.name)}
-            </td>
-
-
-            <td class="daily-available">
-                ${number(available)}
             </td>
 
 
@@ -1370,7 +1378,6 @@ function renderDailyStock(stock) {
 
 
             <td>
-
                 <input
                     type="number"
                     min="0"
@@ -1379,7 +1386,11 @@ function renderDailyStock(stock) {
                     data-product-id="${product.id}"
                     value="${additions}"
                 >
+            </td>
 
+
+            <td class="daily-available">
+                ${number(available)}
             </td>
 
 
@@ -1422,6 +1433,11 @@ function renderDailyStock(stock) {
             </td>
 
 
+            <td class="daily-stock-value">
+                KES ${money(stockValue)}
+            </td>
+
+
             <td>
 
                 <button
@@ -1429,7 +1445,7 @@ function renderDailyStock(stock) {
                     class="primary-button btn-small"
                     onclick="saveDailyStock(${product.id})"
                 >
-                    Save
+                    Save Stock
                 </button>
 
             </td>
@@ -1492,6 +1508,12 @@ function renderDailyStock(stock) {
                     product.selling_price || 0
                 );
 
+            const stockValueElement =
+                tr.querySelector(".daily-stock-value");
+
+            const stockValueAmount =
+                closingValue * Number(product.purchase_price || 0);
+
 
             const soldElement =
                 tr.querySelector(
@@ -1527,6 +1549,11 @@ function renderDailyStock(stock) {
                 salesElement.textContent =
                     `KES ${money(salesAmount)}`;
 
+            }
+
+            if (stockValueElement) {
+                stockValueElement.textContent =
+                    `KES ${money(stockValueAmount)}`;
             }
 
         }
@@ -2464,24 +2491,29 @@ async function addPurchase(
         ).trim();
 
     if (!productId) {
-        alert(
-            "Select a product."
-        );
+        showMessage("purchaseMessage", "Select a product.", "error");
 
         return;
     }
 
     if (!Number.isFinite(quantity) || quantity <= 0) {
-        alert("Enter a valid purchase quantity.");
+        showMessage("purchaseMessage", "Enter a quantity greater than zero.", "error");
         return;
     }
 
     if (!Number.isFinite(amount) || amount < 0) {
-        alert("Enter a valid purchase amount.");
+        showMessage("purchaseMessage", "Enter a valid amount paid.", "error");
         return;
     }
 
+    const saveButton = document.getElementById("savePurchase");
+
     try {
+        if (saveButton) {
+            saveButton.disabled = true;
+            saveButton.textContent = "Saving...";
+        }
+
         await apiRequest(
             "/api/purchases",
             {
@@ -2506,10 +2538,9 @@ async function addPurchase(
         setValue("purchaseProduct", "");
         setValue("purchaseQuantity", "");
         setValue("purchaseAmount", "");
+        setValue("purchaseSupplier", "");
 
-        await loadPurchases();
-        await loadDailyStock();
-        await loadDashboard();
+        await loadAll();
 
         showMessage(
             "purchaseMessage",
@@ -2521,9 +2552,12 @@ async function addPurchase(
             error
         );
 
-        alert(
-            error.message
-        );
+        showMessage("purchaseMessage", error.message, "error");
+    } finally {
+        if (saveButton) {
+            saveButton.disabled = false;
+            saveButton.textContent = "Record Purchase";
+        }
     }
 }
 
@@ -2550,7 +2584,7 @@ async function deletePurchase(
             }
         );
 
-        await loadPurchases();
+        await loadAll();
 
         alert(
             "Purchase deleted."
@@ -2814,35 +2848,41 @@ async function loadReconciliation() {
             money(data.total_purchases)
         );
 
+        reconciliationExpectedMoney =
+            Number(data.expected_money || 0);
+
         setText(
             "expectedMoney",
-            money(data.expected_money)
+            money(reconciliationExpectedMoney)
         );
 
-        setText(
-            "actualMoney",
-            money(data.actual_money)
-        );
-
-        setText(
-            "moneyDifference",
-            money(data.difference)
-        );
-
-        setText(
-            "reconciliationStatus",
-            data.status
-        );
-
-        const status = document.getElementById("reconciliationStatus");
-        if (status) {
-            status.className = `status-badge ${String(data.status || "balanced").toLowerCase()}`;
-        }
+        updateReconciliationPreview();
     } catch (error) {
         console.error(
             "Reconciliation error:",
             error
         );
+    }
+}
+
+function updateReconciliationPreview() {
+    const cash = Number(getValue("cashAtHand") || 0);
+    const till = Number(getValue("tillAmount") || 0);
+    const actualMoney = cash + till;
+    const difference = actualMoney - reconciliationExpectedMoney;
+    const status = difference < 0
+        ? "SHORTAGE"
+        : difference > 0
+            ? "SURPLUS"
+            : "BALANCED";
+
+    setText("actualMoney", money(actualMoney));
+    setText("moneyDifference", money(difference));
+    setText("reconciliationStatus", status);
+
+    const statusElement = document.getElementById("reconciliationStatus");
+    if (statusElement) {
+        statusElement.className = `status-badge ${status.toLowerCase()}`;
     }
 }
 
@@ -2946,6 +2986,16 @@ function renderDailyReport(
             dailyReportProducts = data.products || [];
             renderDailyStock(dailyStock);
 
+    const products = data.products || [];
+    const countedProducts = products.filter(
+        product => Boolean(product.stock_counted)
+    ).length;
+
+    setText(
+        "dailyReportCount",
+        `${number(countedProducts)} / ${number(products.length)}`
+    );
+
     if (tbody) {
         tbody.innerHTML =
             "";
@@ -2955,6 +3005,10 @@ function renderDailyReport(
             []
         ).forEach(
             product => {
+
+                const stockCounted =
+                    Boolean(product.stock_counted);
+
                 const tr =
                     document.createElement(
                         "tr"
@@ -2969,34 +3023,36 @@ function renderDailyReport(
                     </td>
 
                     <td>
-                        ${number(
-                            product.opening_quantity
-                        )}
+                        ${stockCounted
+                            ? number(product.opening_quantity)
+                            : "Not counted"}
                     </td>
 
                     <td>
-                        ${number(
-                            product.additions
-                        )}
+                        ${stockCounted
+                            ? number(product.additions)
+                            : "Not counted"}
                     </td>
 
                     <td>
-                        ${number(
-                            Number(product.opening_quantity || 0) +
-                            Number(product.additions || 0)
-                        )}
+                        ${stockCounted
+                            ? number(
+                                Number(product.opening_quantity || 0) +
+                                Number(product.additions || 0)
+                            )
+                            : "Not counted"}
                     </td>
 
                     <td>
-                        ${number(
-                            product.closing_quantity
-                        )}
+                        ${stockCounted
+                            ? number(product.closing_quantity)
+                            : "Not counted"}
                     </td>
 
                     <td>
-                        ${number(
-                            product.units_sold
-                        )}
+                        ${stockCounted
+                            ? number(product.units_sold)
+                            : "Not counted"}
                     </td>
 
                     <td>
@@ -3006,9 +3062,9 @@ function renderDailyReport(
                     </td>
 
                     <td>
-                        ${number(
-                            product.stock_variance
-                        )}
+                        ${stockCounted
+                            ? number(product.stock_variance)
+                            : "Not counted"}
                     </td>
 
                     <td>
@@ -3084,6 +3140,241 @@ function renderDailyReport(
     );
 }
 
+async function loadMonthlyReport() {
+    if (!requireBusiness()) {
+        return;
+    }
+
+    const monthInput =
+        document.getElementById("reportMonth");
+
+    if (!monthInput) {
+        return;
+    }
+
+    if (!monthInput.value) {
+        monthInput.value = currentDate.slice(0, 7);
+    }
+
+    const month = monthInput.value;
+    const button =
+        document.getElementById("loadMonthlyReport");
+
+    if (button) {
+        button.disabled = true;
+    }
+
+    setText("monthlyReportMessage", "");
+
+    try {
+        const data = await apiRequest(
+            `/api/reports/monthly?${getBusinessQuery()}&month=${encodeURIComponent(month)}`
+        );
+
+        renderMonthlyReport(data);
+    } catch (error) {
+        console.error("Monthly report error:", error);
+        setText("monthlyReportMessage", error.message);
+
+        const tbody =
+            document.getElementById("monthlyReportTableBody");
+
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-message">
+                        Monthly report could not be loaded.
+                    </td>
+                </tr>
+            `;
+        }
+    } finally {
+        if (button) {
+            button.disabled = false;
+        }
+    }
+}
+
+function renderMonthlyReport(data) {
+    const totals = data.totals || {};
+    const days = data.days || [];
+    const activityDays = Number(totals.activityDays || 0);
+    const reconciledDays = Number(totals.reconciledDays || 0);
+    const productsCounted = days.reduce(
+        (sum, day) => sum + Number(day.products_counted || 0),
+        0
+    );
+    const expectedProductCounts = days.reduce(
+        (sum, day) => sum + Number(day.active_products || 0),
+        0
+    );
+
+    setText("monthlyReceiptSales", money(totals.receiptSales));
+    setText("monthlyGrossProfit", money(totals.grossProfit));
+    setText("monthlyExpenses", money(totals.expenses));
+    setText("monthlyNetCashMovement", money(totals.netCashMovement));
+    setText("monthlyPhysicalUnits", number(totals.physicalUnits));
+    setText("monthlyReceiptUnits", number(totals.receiptUnits));
+    setText(
+        "monthlyProductsCounted",
+        `${number(productsCounted)} / ${number(expectedProductCounts)}`
+    );
+    setText("monthlyStockVariance", number(totals.stockVariance));
+    setText(
+        "monthlyReconciledDays",
+        `${reconciledDays} / ${activityDays}`
+    );
+    setText(
+        "monthlyReconciliationDifference",
+        money(totals.reconciliationDifference)
+    );
+    setText("monthlyExpectedMoney", money(totals.expectedMoney));
+    setText("monthlyActualMoney", money(totals.actualMoney));
+
+    const netCashMovement =
+        document.getElementById("monthlyNetCashMovement");
+
+    if (netCashMovement) {
+        netCashMovement.classList.toggle(
+            "negative",
+            Number(totals.netCashMovement || 0) < 0
+        );
+        netCashMovement.classList.toggle(
+            "positive",
+            Number(totals.netCashMovement || 0) >= 0
+        );
+    }
+
+    const stockVariance =
+        document.getElementById("monthlyStockVariance");
+
+    if (stockVariance) {
+        stockVariance.classList.toggle(
+            "attention",
+            Number(totals.stockVarianceDays || 0) > 0
+        );
+    }
+
+    const status =
+        document.getElementById("monthlyBusinessStatus");
+    const statusValue = data.business_status || "NO ACTIVITY";
+    const statusClass = {
+        "BALANCED": "balanced",
+        "SURPLUS": "surplus",
+        "NEEDS REVIEW": "shortage",
+        "INCOMPLETE": "incomplete",
+        "NO ACTIVITY": "no-activity"
+    }[statusValue] || "no-activity";
+
+    if (status) {
+        status.textContent = statusValue;
+        status.className = `status-badge ${statusClass}`;
+    }
+
+    const statusDetails = [];
+
+    if (activityDays > 0) {
+        statusDetails.push(
+            `${reconciledDays} of ${activityDays} active days reconciled`
+        );
+        statusDetails.push(
+            `${Number(totals.stockCountDays || 0)} days with stock counts`
+        );
+
+        if (Number(totals.partialCountDays || 0) > 0) {
+            statusDetails.push(
+                `${totals.partialCountDays} partial stock-count day(s)`
+            );
+        }
+
+        const daysWithoutAnyCounts =
+            activityDays -
+            Number(totals.stockCountDays || 0) -
+            Number(totals.partialCountDays || 0);
+
+        if (daysWithoutAnyCounts > 0) {
+            statusDetails.push(
+                `${daysWithoutAnyCounts} day(s) with no stock counts`
+            );
+        }
+    } else {
+        statusDetails.push("No business activity was recorded for this month.");
+    }
+
+    if (Number(totals.shortageDays || 0) > 0) {
+        statusDetails.push(`${totals.shortageDays} shortage day(s)`);
+    }
+
+    if (Number(totals.surplusDays || 0) > 0) {
+        statusDetails.push(`${totals.surplusDays} surplus day(s)`);
+    }
+
+    if (Number(totals.stockVarianceDays || 0) > 0) {
+        statusDetails.push(
+            `${totals.stockVarianceDays} day(s) with stock variance`
+        );
+    }
+
+    setText(
+        "monthlyBusinessStatusDetail",
+        statusDetails.join(" | ")
+    );
+
+    const tbody =
+        document.getElementById("monthlyReportTableBody");
+
+    if (!tbody) {
+        return;
+    }
+
+    tbody.innerHTML = "";
+
+    if (!days.length) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" class="empty-message">
+                    No activity recorded for this month.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    days.forEach(day => {
+        const stockCounted = Boolean(day.stock_counted);
+        const partialCount =
+            Number(day.products_counted || 0) > 0 && !stockCounted;
+        const productCoverage = Number(day.active_products || 0) > 0
+            ? `${number(day.products_counted)} / ${number(day.active_products)}`
+            : "No active products";
+        const reconciliationStatus =
+            day.reconciliation_status || "NOT RECONCILED";
+        const badgeClass = {
+            "BALANCED": "balanced",
+            "SHORTAGE": "shortage",
+            "SURPLUS": "surplus"
+        }[reconciliationStatus] || "incomplete";
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${escapeHtml(formatDate(day.date))}</td>
+            <td>KES ${money(day.receipt_sales)}</td>
+            <td>${number(day.receipt_units)}</td>
+            <td>${productCoverage}</td>
+            <td>${stockCounted
+                ? number(day.physical_units)
+                : partialCount
+                    ? `${number(day.physical_units)} (partial)`
+                    : "Not counted"}</td>
+            <td>${stockCounted ? number(day.stock_variance) : "Incomplete count"}</td>
+            <td>KES ${money(day.expenses)}</td>
+            <td><span class="status-badge ${badgeClass}">${escapeHtml(reconciliationStatus)}</span></td>
+        `;
+
+        tbody.appendChild(row);
+    });
+}
+
 /* =====================================================
    DASHBOARD
 ===================================================== */
@@ -3148,7 +3439,10 @@ function populateAllProductSelects() {
         products.forEach(product => {
             const option = document.createElement("option");
             option.value = product.id;
-            option.textContent = `${product.name} - KES ${money(product.selling_price)}`;
+            const price = select === purchaseSelect
+                ? product.purchase_price
+                : product.selling_price;
+            option.textContent = `${product.name} - KES ${money(price)}`;
             select.appendChild(option);
         });
 
@@ -3223,7 +3517,28 @@ async function loadAll() {
 
     await loadDailyReport();
 
+    await loadMonthlyReport();
+
     await loadDashboard();
+}
+
+async function refreshAllData() {
+    const button =
+        document.getElementById("refreshDataButton");
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = "Refreshing...";
+    }
+
+    try {
+        await loadAll();
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = "Refresh Data";
+        }
+    }
 }
 
 /* =====================================================
@@ -3231,6 +3546,16 @@ async function loadAll() {
 ===================================================== */
 
 function setupEventListeners() {
+    const refreshDataButton =
+        document.getElementById("refreshDataButton");
+
+    if (refreshDataButton) {
+        refreshDataButton.addEventListener(
+            "click",
+            refreshAllData
+        );
+    }
+
     const businessSelect =
         document.getElementById(
             "businessSelect"
@@ -3414,14 +3739,12 @@ function setupEventListeners() {
         );
     }
 
-    const purchaseButton =
-        document.getElementById(
-            "savePurchase"
-        );
+    const purchaseForm =
+        document.getElementById("purchaseForm");
 
-    if (purchaseButton) {
-        purchaseButton.addEventListener(
-            "click",
+    if (purchaseForm) {
+        purchaseForm.addEventListener(
+            "submit",
             addPurchase
         );
     }
@@ -3464,6 +3787,16 @@ function setupEventListeners() {
         });
     }
 
+    const monthlyReportButton =
+        document.getElementById("loadMonthlyReport");
+
+    if (monthlyReportButton) {
+        monthlyReportButton.addEventListener(
+            "click",
+            loadMonthlyReport
+        );
+    }
+
     [
         "cashAtHand",
         "tillAmount"
@@ -3477,7 +3810,7 @@ function setupEventListeners() {
             if (input) {
                 input.addEventListener(
                     "input",
-                    loadReconciliation
+                    updateReconciliationPreview
                 );
             }
         }
